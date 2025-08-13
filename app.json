@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "TrailGuide",
+    "slug": "trailguide-expo53",
+    "platforms": [
+      "android",
+      "ios",
+      "web"
+    ],
+    "orientation": "portrait",
+    "jsEngine": "hermes",
+    "web": {
+      "bundler": "metro"
+    },
+    "scheme": "trailguide-expo53",
+    "android": {
+      "package": "com.anonymous.trailguideexpo53",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "60c78726-852c-4cc0-b7a8-359db13b57d4"
+      }
+    }
+  }
+}
