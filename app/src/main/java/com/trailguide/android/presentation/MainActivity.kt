@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import com.trailguide.android.data.repository.TrailRepository
 import com.trailguide.android.presentation.navigation.TrailGuideApp
 import com.trailguide.android.presentation.theme.TrailGuideTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -31,12 +32,20 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var supabaseClient: SupabaseClient
     
+    @Inject
+    lateinit var trailRepository: TrailRepository
+    
     companion object {
         private const val TAG = "MainActivity"
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Wake up the Render server in the background (for free tier cold starts)
+        lifecycleScope.launch {
+            trailRepository.wakeUpServer()
+        }
         
         // Handle deep link if activity was started with one
         handleDeepLink(intent)

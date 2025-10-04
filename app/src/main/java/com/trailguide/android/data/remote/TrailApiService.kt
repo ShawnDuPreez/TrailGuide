@@ -69,5 +69,11 @@ interface TrailApiService {
      */
     @GET("api/trails/favorites")
     suspend fun getFavoriteTrails(): Response<List<TrailDto>>
+    
+    /**
+     * GET /api/health - Health check to wake up server (Render.com cold start)
+     */
+    @GET("api/health")
+    suspend fun healthCheck(): Response<Unit>
 }
 

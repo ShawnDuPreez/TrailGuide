@@ -55,8 +55,19 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 /**
  * Health check endpoint
+ * Also available at /api/health for consistency with other endpoints
  */
 app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'TrailGuide API is running',
+    timestamp: new Date().toISOString(),
+    version: process.env.API_VERSION || 'v1'
+  });
+});
+
+// Health check at /api/health for Android app
+app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     message: 'TrailGuide API is running',

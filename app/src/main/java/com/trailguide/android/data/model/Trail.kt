@@ -23,7 +23,18 @@ data class Trail(
     val isDownloaded: Boolean = false,
     val isFavorite: Boolean = false,
     val description: String? = null,
-    val segments: List<TrailSegment> = emptyList()
+    val segments: List<TrailSegment> = emptyList(),
+    val routeCoordinates: List<RoutePoint> = emptyList()  // GPS coordinates for trail path
+) : Parcelable
+
+/**
+ * GPS coordinate point for trail route visualization
+ */
+@Parcelize
+data class RoutePoint(
+    val latitude: Double,
+    val longitude: Double,
+    val elevation: Double? = null
 ) : Parcelable
 
 /**
