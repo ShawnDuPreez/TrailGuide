@@ -104,7 +104,11 @@ fun TrailGuideApp() {
             }
             
             composable(Screen.Downloads.route) {
-                DownloadsScreen()
+                DownloadsScreen(
+                    onTrailClick = { trailId ->
+                        navController.navigate(Screen.TrailDetails.createRoute(trailId))
+                    }
+                )
             }
             
             composable(Screen.Profile.route) {
