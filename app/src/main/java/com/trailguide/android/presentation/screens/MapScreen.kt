@@ -1,12 +1,16 @@
 package com.trailguide.android.presentation.screens
 
+import android.Manifest
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.PermissionChecker
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -24,6 +28,19 @@ fun MapScreen(
     viewModel: TrailsViewModel = hiltViewModel()
 ) {
     val trails by viewModel.trails.collectAsState()
+    val context = LocalContext.current
+    
+    // Check if we have location permission
+    val hasLocationPermission = remember {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PermissionChecker.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PermissionChecker.PERMISSION_GRANTED
+    }
     
     // Default location: Magaliesberg, South Africa
     val defaultLocation = LatLng(-25.792, 27.946)
@@ -40,12 +57,12 @@ fun MapScreen(
             cameraPositionState = cameraPositionState,
             properties = MapProperties(
                 mapType = mapType,
-                isMyLocationEnabled = true
+                isMyLocationEnabled = hasLocationPermission
             ),
             uiSettings = MapUiSettings(
                 zoomControlsEnabled = true,
                 compassEnabled = true,
-                myLocationButtonEnabled = true,
+                myLocationButtonEnabled = hasLocationPermission,
                 mapToolbarEnabled = true
             )
         ) {
