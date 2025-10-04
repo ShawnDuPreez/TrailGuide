@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,6 +11,13 @@ plugins {
 
 kotlin {
     jvmToolchain(17)
+}
+
+// Load local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -26,15 +36,19 @@ android {
             useSupportLibrary = true
         }
 
-        // Supabase Configuration (same for all builds)
-        buildConfigField("String", "SUPABASE_URL", "\"https://fvlxrbovmybdbhiwskde.supabase.co\"")
-        buildConfigField("String", "SUPABASE_KEY", "\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bHhyYm92bXliZGJoaXdza2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0ODM5ODksImV4cCI6MjA3NTA1OTk4OX0.BZ2FOYk_91y321rfvEIgceci9txUF9Q5_ujD54yiw90\"")
-        buildConfigField("String", "OPENWEATHER_API_KEY", "\"b028c82e2ce28a815c707c2dede1ba4c\"")
+        // API Keys from local.properties (not committed to Git)
+        buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("SUPABASE_URL") ?: ""}\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"${localProperties.getProperty("SUPABASE_KEY") ?: ""}\"")
+        buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties.getProperty("OPENWEATHER_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"${localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""}\"")
+        
+        // Add Maps API key to manifest
+        manifestPlaceholders["MAPS_API_KEY"] = localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false  // Temporarily disabled to avoid OneDrive lock issues
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -46,8 +60,8 @@ android {
         debug {
             isMinifyEnabled = false
             
-            // Local development server (emulator)
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+            // Render deployment URL (changed from localhost for testing)
+            buildConfigField("String", "API_BASE_URL", "\"https://trailguide-api.onrender.com/\"")
         }
     }
 
@@ -149,6 +163,7 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.20")  // For kotlin.test assertions
     
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

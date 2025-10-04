@@ -30,6 +30,22 @@ class TrailRepository @Inject constructor(
     }
     
     /**
+     * Wake up the server with a health check (for Render.com cold starts).
+     * This should be called when the app starts to pre-warm the server.
+     * Runs silently in the background - doesn't emit any results to UI.
+     */
+    suspend fun wakeUpServer() {
+        try {
+            Log.d(TAG, "Sending wake-up ping to server...")
+            apiService.healthCheck()
+            Log.d(TAG, "Server wake-up ping sent successfully")
+        } catch (e: Exception) {
+            Log.w(TAG, "Server wake-up ping failed (this is normal): ${e.message}")
+            // Silently fail - the actual data request will handle the cold start
+        }
+    }
+    
+    /**
      * Fetch all trails from the API.
      * Returns a Flow for reactive data handling.
      */

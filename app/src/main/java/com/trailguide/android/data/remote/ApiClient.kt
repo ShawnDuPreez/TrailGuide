@@ -14,7 +14,8 @@ import java.util.concurrent.TimeUnit
  */
 object ApiClient {
     
-    private const val TIMEOUT_SECONDS = 30L
+    // Extended timeout for Render.com free tier cold starts (can take 60-90 seconds)
+    private const val TIMEOUT_SECONDS = 120L
     
     /**
      * Auth token for authenticated requests.
