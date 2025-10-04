@@ -25,6 +25,9 @@ sealed class Screen(val route: String, val title: String) {
     object TrailDetails : Screen("trail/{trailId}", "Trail Details") {
         fun createRoute(trailId: String) = "trail/$trailId"
     }
+    object Hiking : Screen("hiking/{trailId}", "Hiking") {
+        fun createRoute(trailId: String) = "hiking/$trailId"
+    }
     object Map : Screen("map", "Map")
     object Downloads : Screen("downloads", "Downloads")
     object Profile : Screen("profile", "Profile")
@@ -92,10 +95,44 @@ fun TrailGuideApp() {
             composable(
                 route = Screen.TrailDetails.route,
                 arguments = listOf(navArgument("trailId") { type = NavType.StringType })
-            ) {
+            ) { backStackEntry ->
+                val trailId = backStackEntry.arguments?.getString("trailId") ?: ""
                 TrailDetailsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToMap = { navController.navigate(Screen.Map.route) }
+                    onNavigateToMap = { navController.navigate(Screen.Map.route) },
+                    onStartHike = { navController.navigate(Screen.Hiking.createRoute(trailId)) }
+                )
+            }
+            
+            composable(
+                route = Screen.Hiking.route,
+                arguments = listOf(navArgument("trailId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val trailId = backStackEntry.arguments?.getString("trailId") ?: ""
+                // For now, we'll pass a mock trail. In a real app, you'd fetch this from the repository
+                val mockTrail = com.trailguide.android.data.model.Trail(
+                    id = trailId,
+                    name = "Sample Trail",
+                    city = "Sample City",
+                    latitude = -25.792,
+                    longitude = 27.946,
+                    distanceKm = 5.0,
+                    elevationM = 200,
+                    difficulty = com.trailguide.android.data.model.Difficulty.MODERATE,
+                    rating = 4.5,
+                    imageUrl = null,
+                    description = "A beautiful hiking trail",
+                    routeCoordinates = listOf(
+                        com.trailguide.android.data.model.RoutePoint(-25.792, 27.946, 100.0),
+                        com.trailguide.android.data.model.RoutePoint(-25.793, 27.947, 120.0),
+                        com.trailguide.android.data.model.RoutePoint(-25.794, 27.948, 150.0),
+                        com.trailguide.android.data.model.RoutePoint(-25.795, 27.949, 180.0),
+                        com.trailguide.android.data.model.RoutePoint(-25.796, 27.950, 200.0)
+                    )
+                )
+                HikingScreen(
+                    trail = mockTrail,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             

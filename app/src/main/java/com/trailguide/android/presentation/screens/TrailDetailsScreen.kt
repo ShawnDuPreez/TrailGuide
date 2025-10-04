@@ -26,7 +26,8 @@ import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
 fun TrailDetailsScreen(
     viewModel: TrailDetailsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
-    onNavigateToMap: () -> Unit
+    onNavigateToMap: () -> Unit,
+    onStartHike: () -> Unit = {}
 ) {
     val trail by viewModel.trail.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -60,7 +61,7 @@ fun TrailDetailsScreen(
                         trail = trail!!,
                         isFavorite = isFavorite,
                         onToggleFavorite = { viewModel.toggleFavorite() },
-                        onStartHike = { viewModel.startHike() },
+                        onStartHike = onStartHike,
                         onDownload = { viewModel.downloadTrail() },
                         onNavigateToMap = onNavigateToMap
                     )

@@ -1,6 +1,9 @@
 package com.trailguide.android.presentation.screens
 
 import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,16 +33,45 @@ fun MapScreen(
     val trails by viewModel.trails.collectAsState()
     val context = LocalContext.current
     
-    // Check if we have location permission
-    val hasLocationPermission = remember {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PermissionChecker.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PermissionChecker.PERMISSION_GRANTED
+    // State for location permission
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    
+    // Location permission launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasLocationPermission = isGranted
+    }
+    
+    // State for showing permission rationale
+    var showPermissionRationale by remember { mutableStateOf(false) }
+    
+    // Request location permission when screen loads
+    LaunchedEffect(Unit) {
+        if (!hasLocationPermission) {
+            // Check if we should show rationale first
+            val shouldShowRationale = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+            
+            if (shouldShowRationale) {
+                showPermissionRationale = true
+            } else {
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
     }
     
     // Default location: Magaliesberg, South Africa
@@ -211,6 +243,34 @@ fun MapScreen(
                     }
                 }
             }
+        }
+        
+        // Permission rationale dialog
+        if (showPermissionRationale) {
+            AlertDialog(
+                onDismissRequest = { showPermissionRationale = false },
+                title = { Text("Location Permission Needed") },
+                text = { 
+                    Text("TrailGuide needs access to your location to show your current position on the map and help you navigate to nearby trails. This makes your hiking experience safer and more convenient.")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showPermissionRationale = false
+                            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                    ) {
+                        Text("Allow")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showPermissionRationale = false }
+                    ) {
+                        Text("Skip")
+                    }
+                }
+            )
         }
     }
 }
