@@ -61,7 +61,7 @@ fun TrailDetailsScreen(
                         isFavorite = isFavorite,
                         onToggleFavorite = { viewModel.toggleFavorite() },
                         onStartHike = { viewModel.startHike() },
-                        onDownload = { viewModel.markAsDownloaded() },
+                        onDownload = { viewModel.downloadTrail() },
                         onNavigateToMap = onNavigateToMap
                     )
                 }
@@ -213,6 +213,50 @@ fun TrailDetailsContent(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
+            
+            // Route availability card
+            if (trail.routeCoordinates.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Primary.copy(alpha = 0.1f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Route,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "GPS Route Available",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Primary
+                            )
+                            Text(
+                                "${trail.routeCoordinates.size} GPS points • Full trail path",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             
             // Description
             trail.description?.let { desc ->

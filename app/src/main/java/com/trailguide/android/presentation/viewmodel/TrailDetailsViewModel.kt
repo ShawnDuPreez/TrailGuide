@@ -37,9 +37,28 @@ class TrailDetailsViewModel @Inject constructor(
     private val _isFavorite = MutableStateFlow(false)
     val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
     
+    private val _isDownloaded = MutableStateFlow(false)
+    val isDownloaded: StateFlow<Boolean> = _isDownloaded.asStateFlow()
+    
+    private val _isDownloading = MutableStateFlow(false)
+    val isDownloading: StateFlow<Boolean> = _isDownloading.asStateFlow()
+    
+    private val _successMessage = MutableStateFlow<String?>(null)
+    val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
+    
     init {
         if (trailId.isNotEmpty()) {
             loadTrailDetails()
+            checkIfDownloaded()
+        }
+    }
+    
+    /**
+     * Check if trail is already downloaded.
+     */
+    private fun checkIfDownloaded() {
+        viewModelScope.launch {
+            _isDownloaded.value = trailRepository.isTrailDownloaded(trailId)
         }
     }
     
@@ -93,12 +112,52 @@ class TrailDetailsViewModel @Inject constructor(
     }
     
     /**
-     * Mark trail as downloaded for offline use.
+     * Download trail for offline use.
      */
-    fun markAsDownloaded() {
+    fun downloadTrail() {
         val currentTrail = _trail.value ?: return
-        _trail.value = currentTrail.copy(isDownloaded = true)
-        // In a real app, this would trigger actual map/data download
+        
+        viewModelScope.launch {
+            _isDownloading.value = true
+            trailRepository.downloadTrail(currentTrail).collect { result ->
+                when (result) {
+                    is NetworkResult.Loading -> {
+                        _isDownloading.value = true
+                    }
+                    is NetworkResult.Success -> {
+                        _isDownloaded.value = true
+                        _isDownloading.value = false
+                        _successMessage.value = "${currentTrail.name} downloaded for offline use!"
+                    }
+                    is NetworkResult.Error -> {
+                        _isDownloading.value = false
+                        _errorMessage.value = result.message
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Delete downloaded trail.
+     */
+    fun deleteDownload() {
+        val currentTrail = _trail.value ?: return
+        
+        viewModelScope.launch {
+            trailRepository.deleteDownloadedTrail(currentTrail.id).collect { result ->
+                when (result) {
+                    is NetworkResult.Success -> {
+                        _isDownloaded.value = false
+                        _successMessage.value = "Removed from downloads"
+                    }
+                    is NetworkResult.Error -> {
+                        _errorMessage.value = result.message
+                    }
+                    is NetworkResult.Loading -> { /* No action */ }
+                }
+            }
+        }
     }
     
     /**
@@ -122,6 +181,13 @@ class TrailDetailsViewModel @Inject constructor(
      */
     fun clearError() {
         _errorMessage.value = null
+    }
+    
+    /**
+     * Clear success message.
+     */
+    fun clearSuccess() {
+        _successMessage.value = null
     }
 }
 

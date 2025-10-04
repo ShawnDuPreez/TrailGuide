@@ -2,6 +2,8 @@ package com.trailguide.android.di
 
 import android.content.Context
 import com.trailguide.android.BuildConfig
+import com.trailguide.android.data.local.DownloadedTrailDao
+import com.trailguide.android.data.local.TrailDatabase
 import com.trailguide.android.data.remote.ApiClient
 import com.trailguide.android.data.remote.AuthApiService
 import com.trailguide.android.data.remote.TrailApiService
@@ -64,14 +66,37 @@ object AppModule {
     }
     
     /**
+     * Provides Room Database.
+     */
+    @Provides
+    @Singleton
+    fun provideTrailDatabase(
+        @ApplicationContext context: Context
+    ): TrailDatabase {
+        return TrailDatabase.getDatabase(context)
+    }
+    
+    /**
+     * Provides Downloaded Trail DAO.
+     */
+    @Provides
+    @Singleton
+    fun provideDownloadedTrailDao(
+        database: TrailDatabase
+    ): DownloadedTrailDao {
+        return database.downloadedTrailDao()
+    }
+    
+    /**
      * Provides Trail Repository.
      */
     @Provides
     @Singleton
     fun provideTrailRepository(
-        apiService: TrailApiService
+        apiService: TrailApiService,
+        downloadedTrailDao: DownloadedTrailDao
     ): TrailRepository {
-        return TrailRepository(apiService)
+        return TrailRepository(apiService, downloadedTrailDao)
     }
     
     /**
