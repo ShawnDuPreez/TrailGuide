@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TrailGuide</string>
+    <string name="trails_screen_title">Trails</string>
+    <string name="map_screen_title">Map</string>
+    <string name="downloads_screen_title">Downloads</string>
+    <string name="profile_screen_title">Profile</string>
+    <string name="search_hint">Search trails...</string>
+    <string name="filter_difficulty">Difficulty</string>
+    <string name="filter_distance">Distance</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="start_hike">Start Hike</string>
+    <string name="download_offline">Download for Offline</string>
+    <string name="favorite">Favorite</string>
+</resources>
+

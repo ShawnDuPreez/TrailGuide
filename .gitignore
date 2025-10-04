@@ -1,0 +1,187 @@
+# ===============================================
+# TrailGuide Android + Node.js API - .gitignore
+# ===============================================
+
+# ===== Node.js / API Server =====
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Environment variables (IMPORTANT - contains secrets!)
+.env
+.env.local
+.env.production
+api-proxy/.env
+api-proxy/.env.local
+
+# ===== Android / Gradle =====
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+bin/
+gen/
+out/
+release/
+
+# Gradle files
+.gradle/
+build/
+*/build/
+app/build/
+*/*/build/
+
+# Local configuration file (sdk path, etc)
+local.properties
+
+# IntelliJ IDEA
+*.iml
+.idea/
+*.iws
+*.ipr
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries
+.idea/jarRepositories.xml
+.idea/modules.xml
+.idea/navEditor.xml
+.idea/caches
+.idea/modules
+.idea/shelf
+
+# Android Studio
+.DS_Store
+captures/
+.externalNativeBuild
+.cxx
+
+# Keystore files (IMPORTANT - keep these private!)
+*.jks
+*.keystore
+keystore.properties
+
+# Google Services (if you had Firebase - keep private!)
+google-services.json
+
+# ===== Logs =====
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== OS Files =====
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ===== IDE / Editor =====
+# VS Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+.netrwhist
+
+# ===== Build Outputs =====
+# APK outputs (keep these local, share via other means)
+app/build/outputs/apk/
+app/build/outputs/bundle/
+app/build/intermediates/
+
+# Debug files
+app/debug/
+app/release/
+
+# ===== Temporary Files =====
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# ===== Test Results =====
+test-results/
+coverage/
+*.test.log
+
+# ===== Documentation Build =====
+docs/_build/
+site/
+
+# ===== Misc =====
+# Backup files
+*.orig
+*.rej
+
+# Compiled source
+*.com
+*.dll
+*.exe
+*.o
+*.so
+
+# Archives (unless needed)
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# ===== Keep These Files =====
+# Force include important config templates
+!.env_template
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# ===== Project Specific =====
+# API proxy specific ignores
+api-proxy/node_modules/
+api-proxy/.env
+api-proxy/logs/
+api-proxy/tmp/
+
+# Scripts that are user-specific
+start-dev.local.bat
+start-dev.local.sh
+
+# Personal notes (if any)
+NOTES.md
+TODO.md
+.personal/
+
