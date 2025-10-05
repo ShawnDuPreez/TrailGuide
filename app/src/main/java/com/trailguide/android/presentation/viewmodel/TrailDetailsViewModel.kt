@@ -63,6 +63,15 @@ class TrailDetailsViewModel @Inject constructor(
     }
     
     /**
+     * Public method to load trail by ID (for external calls).
+     */
+    fun loadTrail(trailId: String) {
+        if (trailId.isNotEmpty()) {
+            loadTrailDetails()
+        }
+    }
+    
+    /**
      * Load trail details from repository.
      */
     private fun loadTrailDetails() {
