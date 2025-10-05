@@ -4,6 +4,8 @@ import android.content.Context
 import com.trailguide.android.BuildConfig
 import com.trailguide.android.data.local.DownloadedTrailDao
 import com.trailguide.android.data.local.TrailDatabase
+import com.trailguide.android.data.local.ReviewDao
+import com.trailguide.android.data.local.CollectionDao
 import com.trailguide.android.data.remote.ApiClient
 import com.trailguide.android.data.remote.AuthApiService
 import com.trailguide.android.data.remote.TrailApiService
@@ -85,6 +87,28 @@ object AppModule {
         database: TrailDatabase
     ): DownloadedTrailDao {
         return database.downloadedTrailDao()
+    }
+    
+    /**
+     * Provides Review DAO.
+     */
+    @Provides
+    @Singleton
+    fun provideReviewDao(
+        database: TrailDatabase
+    ): ReviewDao {
+        return database.reviewDao()
+    }
+    
+    /**
+     * Provides Collection DAO.
+     */
+    @Provides
+    @Singleton
+    fun provideCollectionDao(
+        database: TrailDatabase
+    ): CollectionDao {
+        return database.collectionDao()
     }
     
     /**

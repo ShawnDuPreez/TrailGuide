@@ -30,6 +30,16 @@ class TrailsViewModel @Inject constructor(
     private val _maxDistance = MutableStateFlow(20.0)
     val maxDistance: StateFlow<Double> = _maxDistance.asStateFlow()
     
+    // Advanced filters
+    private val _maxProximity = MutableStateFlow<Double?>(null) // Distance from user location in km
+    val maxProximity: StateFlow<Double?> = _maxProximity.asStateFlow()
+    
+    private val _maxDuration = MutableStateFlow<Double?>(null) // Max duration in hours
+    val maxDuration: StateFlow<Double?> = _maxDuration.asStateFlow()
+    
+    private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null) // lat, lon
+    val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
+    
     // Trail data and loading states
     private val _trails = MutableStateFlow<List<Trail>>(emptyList())
     val trails: StateFlow<List<Trail>> = _trails.asStateFlow()
@@ -45,8 +55,19 @@ class TrailsViewModel @Inject constructor(
         _trails,
         _searchQuery,
         _selectedDifficulty,
-        _maxDistance
-    ) { trails, query, difficulty, distance ->
+        _maxDistance,
+        _maxProximity,
+        _maxDuration,
+        _userLocation
+    ) { values ->
+        val trails = values[0] as List<Trail>
+        val query = values[1] as String
+        val difficulty = values[2] as Difficulty?
+        val distance = values[3] as Double
+        val proximity = values[4] as Double?
+        val duration = values[5] as Double?
+        val userLoc = values[6] as Pair<Double, Double>?
+        
         trails.filter { trail ->
             val matchesQuery = query.isBlank() || 
                 trail.name.contains(query, ignoreCase = true) ||
@@ -56,13 +77,56 @@ class TrailsViewModel @Inject constructor(
             
             val matchesDistance = trail.distanceKm <= distance
             
-            matchesQuery && matchesDifficulty && matchesDistance
+            // Proximity filter (distance from user location)
+            val matchesProximity = if (proximity != null && userLoc != null) {
+                val distanceFromUser = calculateDistance(
+                    userLoc.first, userLoc.second,
+                    trail.latitude, trail.longitude
+                )
+                distanceFromUser <= proximity
+            } else {
+                true
+            }
+            
+            // Duration filter (estimated time to complete trail)
+            val matchesDuration = if (duration != null) {
+                val estimatedHours = estimateHikingDuration(trail)
+                estimatedHours <= duration
+            } else {
+                true
+            }
+            
+            matchesQuery && matchesDifficulty && matchesDistance && matchesProximity && matchesDuration
         }.sortedBy { it.difficulty.order }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+    
+    /**
+     * Calculate distance between two points using Haversine formula (in km)
+     */
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371.0 // Earth's radius in km
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+                kotlin.math.cos(Math.toRadians(lat1)) * kotlin.math.cos(Math.toRadians(lat2)) *
+                kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
+        val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
+        return R * c
+    }
+    
+    /**
+     * Estimate hiking duration based on distance and elevation
+     * Uses Naismith's rule: 1 hour per 5km + 1 hour per 600m elevation gain
+     */
+    private fun estimateHikingDuration(trail: Trail): Double {
+        val distanceHours = trail.distanceKm / 5.0
+        val elevationHours = trail.elevationM / 600.0
+        return distanceHours + elevationHours
+    }
     
     init {
         loadTrails()
@@ -115,12 +179,35 @@ class TrailsViewModel @Inject constructor(
     }
     
     /**
+     * Set user location for proximity filtering
+     */
+    fun setUserLocation(latitude: Double, longitude: Double) {
+        _userLocation.value = Pair(latitude, longitude)
+    }
+    
+    /**
+     * Set maximum proximity filter (distance from user)
+     */
+    fun setMaxProximity(proximityKm: Double?) {
+        _maxProximity.value = proximityKm
+    }
+    
+    /**
+     * Set maximum duration filter
+     */
+    fun setMaxDuration(durationHours: Double?) {
+        _maxDuration.value = durationHours
+    }
+    
+    /**
      * Clear all filters.
      */
     fun clearFilters() {
         _searchQuery.value = ""
         _selectedDifficulty.value = null
         _maxDistance.value = 20.0
+        _maxProximity.value = null
+        _maxDuration.value = null
     }
     
     /**

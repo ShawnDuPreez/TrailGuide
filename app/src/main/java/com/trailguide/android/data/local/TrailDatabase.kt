@@ -11,14 +11,20 @@ import androidx.room.TypeConverters
  * Stores downloaded trails for offline access.
  */
 @Database(
-    entities = [DownloadedTrailEntity::class],
-    version = 1,
+    entities = [
+        DownloadedTrailEntity::class,
+        ReviewEntity::class,
+        CollectionEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
 abstract class TrailDatabase : RoomDatabase() {
     
     abstract fun downloadedTrailDao(): DownloadedTrailDao
+    abstract fun reviewDao(): ReviewDao
+    abstract fun collectionDao(): CollectionDao
     
     companion object {
         @Volatile
