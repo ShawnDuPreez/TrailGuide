@@ -34,6 +34,8 @@ fun TrailsScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedDifficulty by viewModel.selectedDifficulty.collectAsState()
     val maxDistance by viewModel.maxDistance.collectAsState()
+    val maxProximity by viewModel.maxProximity.collectAsState()
+    val maxDuration by viewModel.maxDuration.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     
@@ -105,13 +107,63 @@ fun TrailsScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    Text("Distance: ≤ ${maxDistance.toInt()} km", style = MaterialTheme.typography.titleSmall)
+                    Text("Trail Distance: ≤ ${maxDistance.toInt()} km", style = MaterialTheme.typography.titleSmall)
                     Slider(
                         value = maxDistance.toFloat(),
                         onValueChange = { viewModel.setMaxDistance(it.toDouble()) },
                         valueRange = 1f..30f,
                         steps = 29
                     )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text("Proximity from me: ${maxProximity?.toInt()?.toString() ?: "Any"} km", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = maxProximity != null,
+                            onCheckedChange = { checked ->
+                                viewModel.setMaxProximity(if (checked) 10.0 else null)
+                            }
+                        )
+                        Text("Enable proximity filter")
+                    }
+                    if (maxProximity != null) {
+                        Slider(
+                            value = maxProximity!!.toFloat(),
+                            onValueChange = { viewModel.setMaxProximity(it.toDouble()) },
+                            valueRange = 1f..50f,
+                            steps = 49
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text("Max Duration: ${maxDuration?.let { "%.1f hrs".format(it) } ?: "Any"}", style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = maxDuration != null,
+                            onCheckedChange = { checked ->
+                                viewModel.setMaxDuration(if (checked) 4.0 else null)
+                            }
+                        )
+                        Text("Enable duration filter")
+                    }
+                    if (maxDuration != null) {
+                        Slider(
+                            value = maxDuration!!.toFloat(),
+                            onValueChange = { viewModel.setMaxDuration(it.toDouble()) },
+                            valueRange = 0.5f..10f,
+                            steps = 19
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { viewModel.clearFilters() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Clear All Filters")
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))

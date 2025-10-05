@@ -25,6 +25,8 @@ import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
  * Main navigation destinations for the app.
  */
 sealed class Screen(val route: String, val title: String) {
+    object Login : Screen("login", "Login")
+    object Register : Screen("register", "Register")
     object Trails : Screen("trails", "Trails")
     object TrailDetails : Screen("trail/{trailId}", "Trail Details") {
         fun createRoute(trailId: String) = "trail/$trailId"
@@ -33,6 +35,7 @@ sealed class Screen(val route: String, val title: String) {
         fun createRoute(trailId: String) = "hiking/$trailId"
     }
     object Map : Screen("map", "Map")
+    object Favorites : Screen("favorites", "Favorites")
     object Downloads : Screen("downloads", "Downloads")
     object Profile : Screen("profile", "Profile")
 }
@@ -88,6 +91,24 @@ fun TrailGuideApp() {
             startDestination = Screen.Trails.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(Screen.Login.route) {
+                LoginScreen(
+                    onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                    onLoginSuccess = { navController.navigate(Screen.Trails.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }}
+                )
+            }
+            
+            composable(Screen.Register.route) {
+                RegisterScreen(
+                    onNavigateToLogin = { navController.popBackStack() },
+                    onRegisterSuccess = { navController.navigate(Screen.Trails.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }}
+                )
+            }
+            
             composable(Screen.Trails.route) {
                 TrailsScreen(
                     onTrailClick = { trailId ->
@@ -123,6 +144,14 @@ fun TrailGuideApp() {
                 MapScreen()
             }
             
+            composable(Screen.Favorites.route) {
+                FavoritesScreen(
+                    onTrailClick = { trailId ->
+                        navController.navigate(Screen.TrailDetails.createRoute(trailId))
+                    }
+                )
+            }
+            
             composable(Screen.Downloads.route) {
                 DownloadsScreen(
                     onTrailClick = { trailId ->
@@ -146,6 +175,11 @@ val bottomNavItems = listOf(
         Screen.Trails,
         "Trails",
         Icons.Filled.Hiking
+    ),
+    BottomNavItem(
+        Screen.Favorites,
+        "Favorites",
+        Icons.Filled.Favorite
     ),
     BottomNavItem(
         Screen.Map,
