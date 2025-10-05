@@ -1,6 +1,7 @@
 package com.trailguide.android.repository
 
 import com.trailguide.android.data.dto.TrailDto
+import com.trailguide.android.data.local.DownloadedTrailDao
 import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.repository.TrailRepository
@@ -27,6 +28,9 @@ class TrailRepositoryTest {
     @Mock
     private lateinit var apiService: TrailApiService
     
+    @Mock
+    private lateinit var downloadedTrailDao: DownloadedTrailDao
+    
     private lateinit var repository: TrailRepository
     
     private val mockTrailDto = TrailDto(
@@ -47,7 +51,7 @@ class TrailRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        repository = TrailRepository(apiService)
+        repository = TrailRepository(apiService, downloadedTrailDao)
     }
     
     @Test

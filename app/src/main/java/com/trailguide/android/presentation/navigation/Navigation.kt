@@ -1,11 +1,13 @@
 package com.trailguide.android.presentation.navigation
 
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -15,7 +17,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.trailguide.android.presentation.screens.*
+import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
 
 /**
  * Main navigation destinations for the app.
@@ -24,6 +28,9 @@ sealed class Screen(val route: String, val title: String) {
     object Trails : Screen("trails", "Trails")
     object TrailDetails : Screen("trail/{trailId}", "Trail Details") {
         fun createRoute(trailId: String) = "trail/$trailId"
+    }
+    object Hiking : Screen("hiking/{trailId}", "Hiking") {
+        fun createRoute(trailId: String) = "hiking/$trailId"
     }
     object Map : Screen("map", "Map")
     object Downloads : Screen("downloads", "Downloads")
@@ -92,10 +99,23 @@ fun TrailGuideApp() {
             composable(
                 route = Screen.TrailDetails.route,
                 arguments = listOf(navArgument("trailId") { type = NavType.StringType })
-            ) {
+            ) { backStackEntry ->
+                val trailId = backStackEntry.arguments?.getString("trailId") ?: ""
                 TrailDetailsScreen(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToMap = { navController.navigate(Screen.Map.route) }
+                    onNavigateToMap = { navController.navigate(Screen.Map.route) },
+                    onStartHike = { navController.navigate(Screen.Hiking.createRoute(trailId)) }
+                )
+            }
+            
+            composable(
+                route = Screen.Hiking.route,
+                arguments = listOf(navArgument("trailId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val trailId = backStackEntry.arguments?.getString("trailId") ?: ""
+                HikingScreenWithTrail(
+                    trailId = trailId,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
             
@@ -152,4 +172,77 @@ data class BottomNavItem(
     val title: String,
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+/**
+ * Hiking screen that fetches real trail data from the API.
+ */
+@Composable
+fun HikingScreenWithTrail(
+    trailId: String,
+    onNavigateBack: () -> Unit,
+    viewModel: TrailDetailsViewModel = hiltViewModel()
+) {
+    val trail by viewModel.trail.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
+    
+    // Load trail data when component is created
+    LaunchedEffect(trailId) {
+        if (trailId.isNotEmpty()) {
+            viewModel.loadTrail(trailId)
+        }
+    }
+    
+    when {
+        isLoading -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+        trail != null -> {
+            HikingScreen(
+                trail = trail!!,
+                onNavigateBack = onNavigateBack
+            )
+        }
+        errorMessage != null -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Failed to load trail",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = errorMessage!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Button(onClick = { viewModel.loadTrail(trailId) }) {
+                        Text("Retry")
+                    }
+                    Button(onClick = onNavigateBack) {
+                        Text("Go Back")
+                    }
+                }
+            }
+        }
+        else -> {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No trail data available")
+            }
+        }
+    }
+}
 

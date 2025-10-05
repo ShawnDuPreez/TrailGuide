@@ -1,7 +1,12 @@
 package com.trailguide.android.presentation.screens
 
 import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,9 +19,11 @@ import androidx.core.content.PermissionChecker
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Polyline
 import com.google.maps.android.compose.*
 import com.trailguide.android.data.model.Difficulty
 import com.trailguide.android.presentation.theme.Primary
+import com.trailguide.android.presentation.viewmodel.MapViewModel
 import com.trailguide.android.presentation.viewmodel.TrailsViewModel
 
 /**
@@ -25,21 +32,51 @@ import com.trailguide.android.presentation.viewmodel.TrailsViewModel
  */
 @Composable
 fun MapScreen(
-    viewModel: TrailsViewModel = hiltViewModel()
+    viewModel: TrailsViewModel = hiltViewModel(),
+    mapViewModel: MapViewModel = hiltViewModel()
 ) {
     val trails by viewModel.trails.collectAsState()
     val context = LocalContext.current
     
-    // Check if we have location permission
-    val hasLocationPermission = remember {
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PermissionChecker.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PermissionChecker.PERMISSION_GRANTED
+    // State for location permission
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    
+    // Location permission launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasLocationPermission = isGranted
+    }
+    
+    // State for showing permission rationale
+    var showPermissionRationale by remember { mutableStateOf(false) }
+    
+    // Request location permission when screen loads
+    LaunchedEffect(Unit) {
+        if (!hasLocationPermission) {
+            // Check if we should show rationale first
+            val shouldShowRationale = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+            
+            if (shouldShowRationale) {
+                showPermissionRationale = true
+            } else {
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
     }
     
     // Default location: Magaliesberg, South Africa
@@ -50,6 +87,14 @@ fun MapScreen(
     
     var mapType by remember { mutableStateOf(MapType.TERRAIN) }
     var selectedTrailId by remember { mutableStateOf<String?>(null) }
+    
+    // OSM Trail state from ViewModel
+    val osmTrails by mapViewModel.osmTrails.collectAsState()
+    val isLoadingOsmTrails by mapViewModel.isLoadingOsmTrails.collectAsState()
+    val osmTrailError by mapViewModel.osmTrailError.collectAsState()
+    val showOsmTrails by mapViewModel.showOsmTrails.collectAsState()
+    val selectedTrail by mapViewModel.selectedTrail.collectAsState()
+    val availableTrails by mapViewModel.availableTrails.collectAsState()
     
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMap(
@@ -66,6 +111,37 @@ fun MapScreen(
                 mapToolbarEnabled = true
             )
         ) {
+            // OSM Hiking Trails
+            if (showOsmTrails) {
+                osmTrails.forEachIndexed { index, polylineOptions ->
+                    Polyline(
+                        points = polylineOptions.points,
+                        color = Color(polylineOptions.color),
+                        width = polylineOptions.width,
+                        clickable = true,
+                        onClick = { polyline ->
+                            // Handle polyline click - show trail info
+                            android.util.Log.d("MapScreen", "Clicked OSM trail #$index")
+                            // You can show an info window or dialog here
+                            true
+                        }
+                    )
+                }
+            }
+            
+            // Selected Trail (when user starts a hike)
+            selectedTrail?.let { trail ->
+                Polyline(
+                    points = trail.points,
+                    color = Color(trail.color),
+                    width = trail.width + 2f, // Make selected trail slightly thicker
+                    clickable = true,
+                    onClick = { polyline ->
+                        android.util.Log.d("MapScreen", "Clicked selected trail")
+                        true
+                    }
+                )
+            }
             // Add markers and routes for all trails
             trails.forEach { trail ->
                 val isSelected = selectedTrailId == trail.id
@@ -105,7 +181,7 @@ fun MapScreen(
             }
         }
         
-        // Map type selector
+        // Map type selector and OSM trails toggle
         Card(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -115,6 +191,11 @@ fun MapScreen(
             )
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    "Map Type",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 TextButton(onClick = { mapType = MapType.NORMAL }) {
                     Text(
                         "Normal",
@@ -132,6 +213,94 @@ fun MapScreen(
                         "Terrain",
                         color = if (mapType == MapType.TERRAIN) Primary else MaterialTheme.colorScheme.onSurface
                     )
+                }
+                
+                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                
+                Text(
+                    "OSM Trails",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                if (isLoadingOsmTrails) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            "Loading...",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                } else {
+                    TextButton(
+                        onClick = { mapViewModel.toggleOsmTrails() }
+                    ) {
+                        Icon(
+                            if (showOsmTrails) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            if (showOsmTrails) "Hide OSM" else "Show OSM",
+                            color = if (showOsmTrails) Primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                
+                if (osmTrailError != null) {
+                    Text(
+                        "Error: ${osmTrailError}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                
+                // Trail Selector
+                if (availableTrails.isNotEmpty()) {
+                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    
+                    Text(
+                        "Start Hike",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    availableTrails.take(3).forEach { (trailId, trailName) ->
+                        TextButton(
+                            onClick = { 
+                                mapViewModel.selectTrail(trailId)
+                                selectedTrailId = trailId
+                            }
+                        ) {
+                            Text(
+                                trailName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (selectedTrailId == trailId) Primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                    
+                    if (selectedTrailId != null) {
+                        TextButton(
+                            onClick = { 
+                                mapViewModel.clearSelectedTrail()
+                                selectedTrailId = null
+                            }
+                        ) {
+                            Text(
+                                "Clear Selection",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -209,8 +378,45 @@ fun MapScreen(
                             Text("🔴 Hard", style = MaterialTheme.typography.bodySmall)
                         }
                     }
+                    
+                    if (showOsmTrails && osmTrails.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "OSM Trails: ${osmTrails.size} hiking paths loaded",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Primary
+                        )
+                    }
                 }
             }
+        }
+        
+        // Permission rationale dialog
+        if (showPermissionRationale) {
+            AlertDialog(
+                onDismissRequest = { showPermissionRationale = false },
+                title = { Text("Location Permission Needed") },
+                text = { 
+                    Text("TrailGuide needs access to your location to show your current position on the map and help you navigate to nearby trails. This makes your hiking experience safer and more convenient.")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showPermissionRationale = false
+                            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                    ) {
+                        Text("Allow")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showPermissionRationale = false }
+                    ) {
+                        Text("Skip")
+                    }
+                }
+            )
         }
     }
 }
