@@ -21,7 +21,7 @@ git clone https://github.com/ShawnDuPreez/TrailGuide.git
 cd TrailGuide
 ```
 
-### 2. Get API Keys (10 minutes)
+### 2. Get API Keys (10 minutes) (Provided for testing in README.md)
 
 #### A. Supabase Setup (5 minutes)
 1. Go to [app.supabase.com](https://app.supabase.com)
