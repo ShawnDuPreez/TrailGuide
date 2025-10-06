@@ -12,6 +12,8 @@ import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.OpenRouteClient
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.remote.safeApiCall
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -32,11 +34,19 @@ import kotlin.random.Random
 @Singleton
 class TrailRepository @Inject constructor(
     private val apiService: TrailApiService,
-    private val downloadedTrailDao: com.trailguide.android.data.local.DownloadedTrailDao
+    private val downloadedTrailDao: com.trailguide.android.data.local.DownloadedTrailDao,
+    private val supabaseClient: SupabaseClient
 ) {
     
     companion object {
         private const val TAG = "TrailRepository"
+    }
+    
+    /**
+     * Get current user ID from Supabase auth.
+     */
+    private fun getCurrentUserId(): String? {
+        return supabaseClient.auth.currentUserOrNull()?.id
     }
     
     /**
@@ -391,8 +401,22 @@ class TrailRepository @Inject constructor(
     fun toggleFavorite(trailId: String, isFavorite: Boolean): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
-        val result = safeApiCall {
-            apiService.toggleFavorite(trailId, mapOf("favorite" to isFavorite))
+        val userId = getCurrentUserId()
+        if (userId == null) {
+            emit(NetworkResult.Error("User not authenticated"))
+            return@flow
+        }
+        
+        val result = if (isFavorite) {
+            // Add to favorites
+            safeApiCall {
+                apiService.addFavorite(userId, mapOf("trail_id" to trailId))
+            }
+        } else {
+            // Remove from favorites
+            safeApiCall {
+                apiService.removeFavorite(userId, trailId)
+            }
         }
         
         when (result) {
@@ -414,7 +438,13 @@ class TrailRepository @Inject constructor(
     fun getFavoriteTrails(): Flow<NetworkResult<List<Trail>>> = flow {
         emit(NetworkResult.Loading)
         
-        val result = safeApiCall { apiService.getFavoriteTrails() }
+        val userId = getCurrentUserId()
+        if (userId == null) {
+            emit(NetworkResult.Error("User not authenticated"))
+            return@flow
+        }
+        
+        val result = safeApiCall { apiService.getFavoriteTrails(userId) }
         
         when (result) {
             is NetworkResult.Success -> {

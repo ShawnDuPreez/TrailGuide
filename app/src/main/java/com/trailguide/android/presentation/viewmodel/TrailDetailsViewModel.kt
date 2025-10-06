@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trailguide.android.data.model.Trail
+import com.trailguide.android.data.model.WeatherForecast
 import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.repository.TrailRepository
+import com.trailguide.android.data.repository.WeatherRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -18,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TrailDetailsViewModel @Inject constructor(
     private val trailRepository: TrailRepository,
+    private val weatherRepository: WeatherRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     
@@ -45,6 +48,16 @@ class TrailDetailsViewModel @Inject constructor(
     
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
+    
+    // Weather data
+    private val _weatherForecast = MutableStateFlow<WeatherForecast?>(null)
+    val weatherForecast: StateFlow<WeatherForecast?> = _weatherForecast.asStateFlow()
+    
+    private val _isLoadingWeather = MutableStateFlow(false)
+    val isLoadingWeather: StateFlow<Boolean> = _isLoadingWeather.asStateFlow()
+    
+    private val _weatherError = MutableStateFlow<String?>(null)
+    val weatherError: StateFlow<String?> = _weatherError.asStateFlow()
     
     init {
         if (trailId.isNotEmpty()) {
@@ -87,6 +100,9 @@ class TrailDetailsViewModel @Inject constructor(
                         _isFavorite.value = result.data.isFavorite
                         _isLoading.value = false
                         _errorMessage.value = null
+                        
+                        // Load weather for trail location
+                        loadWeather(result.data.latitude, result.data.longitude)
                     }
                     is NetworkResult.Error -> {
                         _isLoading.value = false
@@ -197,6 +213,39 @@ class TrailDetailsViewModel @Inject constructor(
      */
     fun clearSuccess() {
         _successMessage.value = null
+    }
+    
+    /**
+     * Load weather forecast for trail location.
+     */
+    private fun loadWeather(latitude: Double, longitude: Double) {
+        viewModelScope.launch {
+            weatherRepository.getWeatherForecast(latitude, longitude).collect { result ->
+                when (result) {
+                    is NetworkResult.Loading -> {
+                        _isLoadingWeather.value = true
+                        _weatherError.value = null
+                    }
+                    is NetworkResult.Success -> {
+                        _weatherForecast.value = result.data
+                        _isLoadingWeather.value = false
+                        _weatherError.value = null
+                    }
+                    is NetworkResult.Error -> {
+                        _isLoadingWeather.value = false
+                        _weatherError.value = result.message
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Refresh weather data.
+     */
+    fun refreshWeather() {
+        val currentTrail = _trail.value ?: return
+        loadWeather(currentTrail.latitude, currentTrail.longitude)
     }
 }
 

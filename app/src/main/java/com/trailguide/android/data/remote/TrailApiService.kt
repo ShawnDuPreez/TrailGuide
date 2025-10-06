@@ -56,19 +56,30 @@ interface TrailApiService {
     ): Response<List<TrailDto>>
     
     /**
-     * POST /api/trails/{id}/favorite - Toggle favorite status
+     * POST /api/users/{userId}/favourites - Add trail to favorites
      */
-    @POST("api/trails/{id}/favorite")
-    suspend fun toggleFavorite(
-        @Path("id") trailId: String,
-        @Body favoriteStatus: Map<String, Boolean>
-    ): Response<Unit>
+    @POST("api/users/{userId}/favourites")
+    suspend fun addFavorite(
+        @Path("userId") userId: String,
+        @Body body: Map<String, String>
+    ): Response<Map<String, String>>
     
     /**
-     * GET /api/trails/favorites - Get user's favorite trails
+     * DELETE /api/users/{userId}/favourites/{trailId} - Remove trail from favorites
      */
-    @GET("api/trails/favorites")
-    suspend fun getFavoriteTrails(): Response<List<TrailDto>>
+    @DELETE("api/users/{userId}/favourites/{trailId}")
+    suspend fun removeFavorite(
+        @Path("userId") userId: String,
+        @Path("trailId") trailId: String
+    ): Response<Map<String, String>>
+    
+    /**
+     * GET /api/users/{userId}/favourites - Get user's favorite trails
+     */
+    @GET("api/users/{userId}/favourites")
+    suspend fun getFavoriteTrails(
+        @Path("userId") userId: String
+    ): Response<List<TrailDto>>
     
     /**
      * GET /api/health - Health check to wake up server (Render.com cold start)

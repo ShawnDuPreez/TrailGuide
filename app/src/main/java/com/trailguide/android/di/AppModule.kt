@@ -9,9 +9,13 @@ import com.trailguide.android.data.local.CollectionDao
 import com.trailguide.android.data.remote.ApiClient
 import com.trailguide.android.data.remote.AuthApiService
 import com.trailguide.android.data.remote.TrailApiService
+import com.trailguide.android.data.remote.WeatherApiService
 import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.data.repository.PreferencesRepository
 import com.trailguide.android.data.repository.TrailRepository
+import com.trailguide.android.data.repository.WeatherRepository
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -118,9 +122,10 @@ object AppModule {
     @Singleton
     fun provideTrailRepository(
         apiService: TrailApiService,
-        downloadedTrailDao: DownloadedTrailDao
+        downloadedTrailDao: DownloadedTrailDao,
+        supabaseClient: SupabaseClient
     ): TrailRepository {
-        return TrailRepository(apiService, downloadedTrailDao)
+        return TrailRepository(apiService, downloadedTrailDao, supabaseClient)
     }
     
     /**
@@ -143,5 +148,29 @@ object AppModule {
         @ApplicationContext context: Context
     ): PreferencesRepository {
         return PreferencesRepository(context)
+    }
+    
+    /**
+     * Provides Weather API service.
+     */
+    @Provides
+    @Singleton
+    fun provideWeatherApiService(): WeatherApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://api.openweathermap.org/data/2.5/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(WeatherApiService::class.java)
+    }
+    
+    /**
+     * Provides Weather Repository.
+     */
+    @Provides
+    @Singleton
+    fun provideWeatherRepository(
+        weatherApiService: WeatherApiService
+    ): WeatherRepository {
+        return WeatherRepository(weatherApiService)
     }
 }

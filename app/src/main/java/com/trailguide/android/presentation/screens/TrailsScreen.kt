@@ -41,6 +41,12 @@ fun TrailsScreen(
     
     var showFilters by remember { mutableStateOf(false) }
     
+    // Refresh trails when screen becomes visible
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        viewModel.refresh()
+        onDispose { }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
