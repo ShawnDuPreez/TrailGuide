@@ -72,6 +72,10 @@ TrailGuide is a comprehensive hiking companion app designed for outdoor enthusia
 
 </div>
 
+## 📱 Server Screenshots
+<div align="center">
+<img src="screenshots/TrailGuide REST API SERVER.png" alt="Backend API" width="200"/>
+   </div>
 ---
 
 ## 🚀 Quick Start for Lecturers
