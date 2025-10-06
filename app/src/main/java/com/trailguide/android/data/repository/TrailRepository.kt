@@ -205,7 +205,7 @@ class TrailRepository @Inject constructor(
     }
     
     /**
-     * Fetch all trails from the API.
+     * Fetch all trails from the API with their favorite status.
      * Returns a Flow for reactive data handling.
      * Automatically generates routes for trails that don't have them.
      */
@@ -218,8 +218,29 @@ class TrailRepository @Inject constructor(
             is NetworkResult.Success -> {
                 val trails = result.data.map { it.toDomainModel() }
                 
+                // Load favorite status for each trail
+                val userId = getCurrentUserId()
+                val trailsWithFavorites = if (userId != null) {
+                    try {
+                        val favoritesResult = safeApiCall { apiService.getFavoriteTrails(userId) }
+                        val favoriteTrailIds = when (favoritesResult) {
+                            is NetworkResult.Success -> favoritesResult.data.map { it.id }.toSet()
+                            else -> emptySet()
+                        }
+                        
+                        trails.map { trail ->
+                            trail.copy(isFavorite = trail.id in favoriteTrailIds)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load favorite status: ${e.message}")
+                        trails // Return trails without favorite status if loading fails
+                    }
+                } else {
+                    trails // Return trails without favorite status if user is not authenticated
+                }
+                
                 // Generate routes for trails that don't have them
-                val trailsWithRoutes = trails.map { trail ->
+                val trailsWithRoutes = trailsWithFavorites.map { trail ->
                     if (trail.routeCoordinates.isEmpty()) {
                         Log.d(TAG, "Generating route for trail: ${trail.name}")
                         

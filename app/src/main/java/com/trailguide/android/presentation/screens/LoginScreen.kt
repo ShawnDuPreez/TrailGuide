@@ -288,7 +288,9 @@ fun LoginScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.storeBiometricCredentials()
+                        if (context is FragmentActivity) {
+                            viewModel.storeBiometricCredentials(context)
+                        }
                         showBiometricDialog = false
                     }
                 ) {

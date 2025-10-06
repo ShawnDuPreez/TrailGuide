@@ -271,11 +271,12 @@ class AuthRepository @Inject constructor(
     
     /**
      * Store user credentials securely using biometric authentication.
+     * @param activity FragmentActivity needed for biometric prompt
      * @param email User's email
      * @param password User's password
      * @return Flow with success/error result
      */
-    suspend fun storeBiometricCredentials(email: String, password: String): Flow<NetworkResult<Unit>> = flow {
+    suspend fun storeBiometricCredentials(activity: androidx.fragment.app.FragmentActivity, email: String, password: String): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
         try {
@@ -284,11 +285,13 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
-            // For now, we'll simulate storing credentials
-            // In a real implementation, you'd need access to FragmentActivity
-            // This would typically be called from the UI layer
-            emit(NetworkResult.Success(Unit))
-            Log.d(TAG, "Biometric credentials stored successfully")
+            val success = biometricAuthManager.storeCredentialsWithBiometric(activity, email, password)
+            if (success) {
+                emit(NetworkResult.Success(Unit))
+                Log.d(TAG, "Biometric credentials stored successfully")
+            } else {
+                emit(NetworkResult.Error("Failed to store biometric credentials"))
+            }
         } catch (e: Exception) {
             emit(NetworkResult.Error("Failed to store biometric credentials: ${e.message}", e))
             Log.e(TAG, "Error storing biometric credentials", e)
