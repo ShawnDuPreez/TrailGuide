@@ -23,7 +23,7 @@ Android App (Kotlin) → REST API (Node.js/Express) → Supabase (PostgreSQL)
 - ✅ **Security**: Helmet middleware for security headers
 - ✅ **Logging**: Morgan middleware for request logging
 
-## Installation
+## Quick Start
 
 ### Prerequisites
 
@@ -31,11 +31,11 @@ Android App (Kotlin) → REST API (Node.js/Express) → Supabase (PostgreSQL)
 - npm or yarn
 - Supabase account with database set up
 
-### Setup
+### Installation
 
 1. **Clone the repository**
    ```bash
-   cd TrailGuide_Android/api-proxy
+   cd TrailGuide/api-proxy
    ```
 
 2. **Install dependencies**
@@ -45,232 +45,245 @@ Android App (Kotlin) → REST API (Node.js/Express) → Supabase (PostgreSQL)
 
 3. **Configure environment variables**
    ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` file with your Supabase credentials:
-   ```
-   SUPABASE_URL=your-supabase-url
-   SUPABASE_ANON_KEY=your-anon-key
-   PORT=3000
-   NODE_ENV=development
+   cp .env_template .env
    ```
 
-4. **Start the server**
+4. **Edit `.env` file with your Supabase credentials**
+   ```env
+   SUPABASE_URL=https://yourproject.supabase.co
+   SUPABASE_KEY=your-supabase-anon-key
+   PORT=3000
+   ```
+
+5. **Start the server**
    ```bash
-   # Development mode with auto-reload
-   npm run dev
-   
-   # Production mode
    npm start
    ```
 
-5. **Verify installation**
-   ```bash
-   curl http://localhost:3000/health
-   ```
+The server will start on `http://localhost:3000`
 
 ## API Endpoints
 
 ### Health Check
-
-```http
+```
 GET /health
 ```
-
-Response:
-```json
-{
-  "status": "ok",
-  "message": "TrailGuide API is running",
-  "timestamp": "2024-10-04T12:00:00.000Z",
-  "version": "v1"
-}
-```
+Returns server status and basic information.
 
 ### Trails
-
-#### Get All Trails
-```http
+```
 GET /api/trails
-```
-
-#### Get Trail by ID
-```http
 GET /api/trails/:id
+GET /api/trails/search
 ```
 
-#### Search Trails
-```http
-GET /api/trails/search?q=magalies&difficulty=moderate&maxDistance=15
-```
-
-Query parameters:
-- `q` (optional): Search query for name or city
-- `difficulty` (optional): `easy`, `moderate`, or `hard`
-- `maxDistance` (optional): Maximum distance in kilometers
-
-#### Create Trail
-```http
-POST /api/trails
-Content-Type: application/json
-
-{
-  "name": "Mountain View Trail",
-  "city": "Pretoria, GP",
-  "latitude": -25.8,
-  "longitude": 28.2,
-  "distanceKm": 12.5,
-  "elevationM": 350,
-  "difficulty": "moderate",
-  "rating": 4.7,
-  "imageUrl": "https://example.com/image.jpg",
-  "tags": ["scenic", "challenging"],
-  "description": "Beautiful mountain trail with panoramic views"
-}
-```
-
-#### Update Trail
-```http
-PUT /api/trails/:id
-Content-Type: application/json
-
-{
-  "name": "Updated Trail Name",
-  ...
-}
-```
-
-#### Delete Trail
-```http
-DELETE /api/trails/:id
-```
+**Search Parameters:**
+- `q` - Search query (trail name)
+- `difficulty` - Filter by difficulty (easy, moderate, hard)
+- `maxDistance` - Maximum distance in kilometers
 
 ### Favorites
-
-#### Toggle Favorite
-```http
-POST /api/trails/:id/favorite
-Content-Type: application/json
-
-{
-  "favorite": true
-}
+```
+POST   /api/users/:id/favourites
+GET    /api/users/:id/favourites
+DELETE /api/users/:id/favourites/:trailId
 ```
 
-#### Get Favorite Trails
-```http
-GET /api/trails/favorites
+### Reviews
+```
+POST /api/trails/:id/reviews
+GET  /api/trails/:id/reviews
 ```
 
-## Database Schema
+## Database Setup
 
-The API expects a Supabase table named `trails` with the following structure:
+### Required Tables
 
+The API expects the following Supabase tables:
+
+#### Trails Table
 ```sql
 CREATE TABLE trails (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  city TEXT NOT NULL,
-  lat DOUBLE PRECISION NOT NULL,
-  lon DOUBLE PRECISION NOT NULL,
-  distance_km DOUBLE PRECISION NOT NULL,
-  elevation_m INTEGER NOT NULL,
-  difficulty TEXT NOT NULL CHECK (difficulty IN ('easy', 'moderate', 'hard')),
-  rating DOUBLE PRECISION NOT NULL CHECK (rating >= 0 AND rating <= 5),
-  image TEXT,
-  tags TEXT[],
-  description TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    difficulty TEXT NOT NULL,
+    distance_km REAL NOT NULL,
+    elevation_m REAL NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    route_coordinates JSONB,
+    created_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
-## Error Handling
-
-The API uses standard HTTP status codes:
-
-- `200 OK`: Successful GET, PUT requests
-- `201 Created`: Successful POST (resource created)
-- `204 No Content`: Successful DELETE
-- `400 Bad Request`: Invalid request data
-- `404 Not Found`: Resource not found
-- `500 Internal Server Error`: Server error
-
-Error response format:
-```json
-{
-  "error": "Error type",
-  "message": "Detailed error message"
-}
+#### Favourites Table
+```sql
+CREATE TABLE favourites (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    trail_id TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(user_id, trail_id)
+);
 ```
 
-## Testing
+### Row Level Security (RLS)
 
-Run the test suite:
+Enable RLS and create policies for the favourites table:
+
+```sql
+-- Enable RLS
+ALTER TABLE favourites ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Users can view their own favourites" ON favourites
+    FOR SELECT USING (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can insert their own favourites" ON favourites
+    FOR INSERT WITH CHECK (auth.uid()::text = user_id);
+
+CREATE POLICY "Users can delete their own favourites" ON favourites
+    FOR DELETE USING (auth.uid()::text = user_id);
+```
+
+## Environment Variables
+
+Create a `.env` file in the `api-proxy` directory:
+
+```env
+# Supabase Configuration
+SUPABASE_URL=https://yourproject.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Optional: CORS origins (comma-separated)
+CORS_ORIGINS=http://localhost:3000,http://10.0.2.2:3000
+```
+
+## Development
+
+### Local Development
+
+1. **Start the server in development mode**
+   ```bash
+   npm run dev
+   ```
+
+2. **The server will restart automatically on file changes**
+
+### Testing
+
 ```bash
-npm test
+# Test API endpoints
+curl http://localhost:3000/health
+curl http://localhost:3000/api/trails
+```
+
+### Logs
+
+The server uses Morgan middleware for request logging. You'll see logs like:
+```
+GET /health 200 2.869 ms - 92
+GET /api/trails 200 2298.560 ms - 3077
+POST /api/users/123/favourites 200 15.234 ms - 45
 ```
 
 ## Deployment
 
-### Deploy to Heroku
-
-1. Create Heroku app:
-   ```bash
-   heroku create trailguide-api
-   ```
-
-2. Set environment variables:
-   ```bash
-   heroku config:set SUPABASE_URL=your-url
-   heroku config:set SUPABASE_ANON_KEY=your-key
-   ```
-
-3. Deploy:
-   ```bash
-   git push heroku main
-   ```
-
-### Deploy to Railway/Render
-
-1. Connect your GitHub repository
-2. Set environment variables in dashboard
-3. Deploy automatically on push
-
-## Development
-
-### Project Structure
-
-```
-api-proxy/
-├── server.js          # Main Express server
-├── package.json       # Dependencies and scripts
-├── .env.example       # Environment template
-├── .env              # Environment variables (git-ignored)
-└── README.md         # This file
+### Local Development
+```bash
+npm start
 ```
 
-### Adding New Endpoints
+### Production Deployment
 
-1. Add route handler in `server.js`
-2. Implement Supabase query
-3. Add error handling
-4. Document in this README
-5. Add tests
+The API server is designed to be deployed on platforms like:
+- **Render** (recommended)
+- **Heroku**
+- **Railway**
+- **DigitalOcean**
+
+#### Render Deployment
+
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Set build command: `npm install`
+4. Set start command: `npm start`
+5. Add environment variables in Render dashboard
+
+#### Environment Variables for Production
+
+```env
+SUPABASE_URL=https://yourproject.supabase.co
+SUPABASE_KEY=your-supabase-anon-key
+PORT=3000
+NODE_ENV=production
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Database Connection Errors**
+- Verify Supabase URL and key are correct
+- Check Supabase project is active
+- Ensure database tables exist
+
+**CORS Errors**
+- Add your app's origin to CORS_ORIGINS
+- Check browser developer tools for specific errors
+
+**Authentication Issues**
+- Verify Supabase authentication is properly configured
+- Check user permissions and RLS policies
+
+### Debug Mode
+
+Enable debug logging by setting:
+```env
+DEBUG=trailguide:*
+```
+
+## API Response Format
+
+### Success Response
+```json
+{
+  "success": true,
+  "data": [...],
+  "message": "Operation successful"
+}
+```
+
+### Error Response
+```json
+{
+  "success": false,
+  "error": "Error message",
+  "code": "ERROR_CODE"
+}
+```
 
 ## Security Considerations
 
-- 🔒 API keys stored in environment variables
-- 🔒 Helmet middleware for security headers
-- 🔒 CORS configured (restrict origins in production)
-- 🔒 Input validation on POST/PUT requests
-- 🔒 SQL injection prevention via Supabase client
+- **API Keys**: Never commit `.env` files to version control
+- **CORS**: Configure allowed origins for production
+- **Rate Limiting**: Consider adding rate limiting for production use
+- **Input Validation**: Validate all input parameters
+- **SQL Injection**: Using parameterized queries with Supabase client
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-MIT License - Part of TrailGuide Android application
-
-## Support
-
-For issues or questions, please open an issue in the GitHub repository.
-
+This project is licensed under the MIT License.
