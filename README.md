@@ -1,3 +1,4 @@
+# ST10294003/ST10268524
 # TrailGuide 🥾 - Android Hiking Companion
 
 **A comprehensive Android application demonstrating modern mobile development practices, authentication systems, and real-world API integration.**
@@ -33,7 +34,6 @@ TrailGuide is a full-stack Android application that demonstrates proficiency in:
 - ✅ **Interactive Maps** - Google Maps integration with trail routes
 - ✅ **Favorites System** - Save and manage favorite trails
 - ✅ **Offline Capabilities** - Download trails for offline use
-- ✅ **Multi-language Support** - English, Afrikaans, isiZulu
 
 ### Technical Implementation
 - ✅ **MVVM Architecture** - Clean separation of concerns
@@ -43,7 +43,6 @@ TrailGuide is a full-stack Android application that demonstrates proficiency in:
 - ✅ **RESTful API** - Custom Node.js backend
 - ✅ **Database Integration** - Supabase PostgreSQL
 - ✅ **Authentication Flow** - Multiple auth methods
-- ✅ **Biometric Security** - Android Keystore integration
 - ✅ **CI/CD Pipeline** - Automated testing and deployment
 - ✅ **Unit Testing** - Comprehensive test coverage
 
@@ -76,14 +75,14 @@ Create `local.properties` in the project root:
 sdk.dir=C:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
 
 # Supabase Configuration (provided for testing)
-SUPABASE_URL=https://dummy.supabase.co
-SUPABASE_KEY=dummy-key
+SUPABASE_URL=https://fvlxrbovmybdbhiwskde.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2bHhyYm92bXliZGJoaXdza2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0ODM5ODksImV4cCI6MjA3NTA1OTk4OX0.BZ2FOYk_91y321rfvEIgceci9txUF9Q5_ujD54yiw90
 
-# Google Maps Configuration (get from Google Cloud Console)
-GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+# Google Maps Configuration (provided for testing)
+GOOGLE_MAPS_API_KEY=AIzaSyAhMlDiS4AsjnvVq92uUAlFqB1ONDxChEQ
 
-# OpenWeather Configuration (optional for testing)
-OPENWEATHER_API_KEY=your-openweather-api-key
+# OpenWeather Configuration (provided for testing)
+OPENWEATHER_API_KEY=b028c82e2ce28a815c707c2dede1ba4c
 ```
 
 **Note**: For full functionality, you'll need a Google Maps API key. The app will run without it but maps won't display.
@@ -123,7 +122,6 @@ Launch the app and test the following features:
 1. **Authentication Flow**
    - Create account with email/password
    - Sign in with Google (if configured)
-   - Test biometric authentication (if device supports)
    - Continue as guest
 
 2. **Core Functionality**
@@ -253,7 +251,6 @@ GitHub Actions workflow demonstrates:
 **Location**: Login/Register screens
 **Demonstrates**:
 - Multiple authentication methods
-- Biometric authentication with Android Keystore
 - Secure credential storage
 - OAuth integration with Google
 
@@ -261,8 +258,6 @@ GitHub Actions workflow demonstrates:
 1. Launch app → Login screen appears
 2. Try email/password registration
 3. Test Google Sign-In (if configured)
-4. Enable biometric login after email auth
-5. Test biometric authentication on subsequent logins
 
 ### 2. Trail Management
 **Location**: Trails screen, Trail Details
@@ -369,7 +364,6 @@ This project demonstrates mastery of:
 - Modern Android development with Kotlin
 - Jetpack Compose UI framework
 - Android architecture components
-- Biometric authentication APIs
 
 ### Backend Development
 - RESTful API design and implementation
@@ -402,7 +396,6 @@ This project demonstrates mastery of:
 
 2. **Authentication Implementation**
    - Multiple auth methods
-   - Biometric integration
    - Secure credential storage
 
 3. **API Integration**
@@ -427,7 +420,6 @@ This project demonstrates mastery of:
 - **API Documentation**: `api-proxy/README.md`
 - **Setup Guide**: `SETUP_GUIDE.md`
 - **Submission Guide**: `SUBMISSION_READY.md`
-- **Demo Script**: `docs/DEMONSTRATION_VIDEO_GUIDE.md`
 
 ---
 
