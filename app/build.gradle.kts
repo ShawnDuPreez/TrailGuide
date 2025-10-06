@@ -65,7 +65,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
         }
     }
-
+]
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
