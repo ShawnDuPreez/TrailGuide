@@ -12,7 +12,8 @@
 # 
 ### Watch the Demo Video
 [![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/SYZOXxKP7lE)
-
+### Watch REST API Server Video
+[![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/CE7YiDrlH50)
 
 
 ---
