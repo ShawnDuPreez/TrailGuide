@@ -31,7 +31,7 @@ class TrailRepositoryTest {
     
     @Mock
     private lateinit var downloadedTrailDao: DownloadedTrailDao
-    
+    ]]
     @Mock
     private lateinit var supabaseClient: SupabaseClient
     
@@ -63,6 +63,7 @@ class TrailRepositoryTest {
         // Given
         val response = Response.success(listOf(mockTrailDto))
         whenever(apiService.getAllTrails()).thenReturn(response)
+        whenever(apiService.getFavoriteTrails(any())).thenReturn(Response.success(emptyList()))
         
         // When
         val flow = repository.getAllTrails()
@@ -82,6 +83,7 @@ class TrailRepositoryTest {
             okhttp3.ResponseBody.create(null, "Not found")
         )
         whenever(apiService.getAllTrails()).thenReturn(errorResponse)
+        whenever(apiService.getFavoriteTrails(any())).thenReturn(Response.success(emptyList()))
         
         // When
         val flow = repository.getAllTrails()
