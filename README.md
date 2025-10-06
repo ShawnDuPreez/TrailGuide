@@ -66,9 +66,9 @@ cd TrailGuide
 # The project includes all necessary configuration files
 ```
 
-### Step 2: Configure API Keys (10 minutes)
+### Step 2: Configure API Keys (10 minutes) 
 
-Create `local.properties` in the project root:
+Create `local.properties` in the project root: (this is the actual keys provided for testing)
 
 ```properties
 # Android SDK Path (adjust for your system)
