@@ -61,8 +61,8 @@ android {
         debug {
             isMinifyEnabled = false
             
-            // Local server URL - use 10.0.2.2 for Android emulator (maps to localhost)
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:3000/\"")
+            // Render deployment URL - for testing distributed APKs
+            buildConfigField("String", "API_BASE_URL", "\"https://trailguide-api.onrender.com/\"")
         }
     }
     compileOptions {
