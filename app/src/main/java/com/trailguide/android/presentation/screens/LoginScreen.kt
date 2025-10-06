@@ -1,5 +1,6 @@
 package com.trailguide.android.presentation.screens
 
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -32,20 +34,28 @@ import com.trailguide.android.presentation.viewmodel.AuthViewModel
 fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToRegister: () -> Unit,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: (com.trailguide.android.data.model.User) -> Unit,
+    onGuestLogin: () -> Unit
 ) {
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val authenticatedUser by viewModel.authenticatedUser.collectAsState()
     
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     var passwordVisible by remember { mutableStateOf(false) }
+    var showBiometricDialog by remember { mutableStateOf(false) }
+    
+    // Check biometric availability
+    val isBiometricAvailable = remember { viewModel.isBiometricAvailable() }
+    val hasBiometricCredentials = remember { viewModel.hasBiometricCredentials() }
     
     // Observe login success
-    LaunchedEffect(viewModel.isAuthenticated.collectAsState().value) {
-        if (viewModel.isAuthenticated.value) {
-            onLoginSuccess()
+    LaunchedEffect(authenticatedUser) {
+        authenticatedUser?.let { user ->
+            onLoginSuccess(user)
         }
     }
     
@@ -167,7 +177,13 @@ fun LoginScreen(
         
         // Sign In button
         Button(
-            onClick = { viewModel.login() },
+            onClick = { 
+                viewModel.login()
+                // Show dialog to enable biometric after successful login
+                if (isBiometricAvailable && !hasBiometricCredentials) {
+                    showBiometricDialog = true
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
@@ -182,6 +198,27 @@ fun LoginScreen(
                 Icon(Icons.Default.Login, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Sign In")
+            }
+        }
+        
+        // Biometric login button (if available and credentials stored)
+        if (isBiometricAvailable && hasBiometricCredentials) {
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedButton(
+                onClick = { 
+                    if (context is FragmentActivity) {
+                        viewModel.loginWithBiometric(context)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !isLoading
+            ) {
+                Icon(Icons.Default.Fingerprint, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Login with Biometric")
             }
         }
         
@@ -203,6 +240,19 @@ fun LoginScreen(
         
         Spacer(modifier = Modifier.height(16.dp))
         
+        // Google SSO Login button
+        OutlinedButton(
+            onClick = { viewModel.loginWithGoogle() },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = !isLoading
+        ) {
+            Icon(Icons.Default.AccountCircle, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Continue with Google")
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
         // Create Account button
         OutlinedButton(
             onClick = onNavigateToRegister,
@@ -216,13 +266,45 @@ fun LoginScreen(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Back to login link
+        // Continue as Guest button
         TextButton(
-            onClick = { /* TODO: Navigate back or skip auth */ },
+            onClick = onGuestLogin,
             enabled = !isLoading
         ) {
+            Icon(Icons.Default.Person, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
             Text("Continue as Guest")
         }
+    }
+    
+    // Biometric Enablement Dialog
+    if (showBiometricDialog) {
+        AlertDialog(
+            onDismissRequest = { showBiometricDialog = false },
+            title = { Text("Enable Biometric Login") },
+            text = { 
+                Text("Would you like to enable biometric login for faster access? Your credentials will be stored securely on this device.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (context is FragmentActivity) {
+                            viewModel.storeBiometricCredentials(context)
+                        }
+                        showBiometricDialog = false
+                    }
+                ) {
+                    Text("Enable")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showBiometricDialog = false }
+                ) {
+                    Text("Not Now")
+                }
+            }
+        )
     }
 }
 

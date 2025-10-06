@@ -63,6 +63,13 @@ class FavoritesViewModel @Inject constructor(
         }
     }
     
+    /**
+     * Refresh the favorites list
+     */
+    fun refresh() {
+        loadFavorites()
+    }
+    
     private fun loadCollections() {
         viewModelScope.launch {
             collectionDao.getAllCollections().collect { entities ->

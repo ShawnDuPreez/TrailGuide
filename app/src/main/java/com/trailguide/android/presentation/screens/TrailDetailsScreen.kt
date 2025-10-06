@@ -1,25 +1,28 @@
 package com.trailguide.android.presentation.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.trailguide.android.data.model.SafetyRating
 import com.trailguide.android.data.model.Trail
 import com.trailguide.android.data.model.TrailSegment
+import com.trailguide.android.data.model.WeatherForecast
 import com.trailguide.android.presentation.theme.*
 import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
 
@@ -38,6 +41,8 @@ fun TrailDetailsScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val weatherForecast by viewModel.weatherForecast.collectAsState()
+    val isLoadingWeather by viewModel.isLoadingWeather.collectAsState()
     
     Scaffold(
         topBar = {
@@ -68,7 +73,10 @@ fun TrailDetailsScreen(
                         onToggleFavorite = { viewModel.toggleFavorite() },
                         onStartHike = onStartHike,
                         onDownload = { viewModel.downloadTrail() },
-                        onNavigateToMap = onNavigateToMap
+                        onNavigateToMap = onNavigateToMap,
+                        weatherForecast = weatherForecast,
+                        isLoadingWeather = isLoadingWeather,
+                        onRefreshWeather = { viewModel.refreshWeather() }
                     )
                 }
                 errorMessage != null -> {
@@ -99,7 +107,10 @@ fun TrailDetailsContent(
     onToggleFavorite: () -> Unit,
     onStartHike: () -> Unit,
     onDownload: () -> Unit,
-    onNavigateToMap: () -> Unit
+    onNavigateToMap: () -> Unit,
+    weatherForecast: WeatherForecast? = null,
+    isLoadingWeather: Boolean = false,
+    onRefreshWeather: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -219,6 +230,16 @@ fun TrailDetailsContent(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
+            
+            // Weather forecast card
+            weatherForecast?.let { weather ->
+                WeatherCard(
+                    weatherForecast = weather,
+                    isLoading = isLoadingWeather,
+                    onRefresh = onRefreshWeather
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             
             // Route availability card
             if (trail.routeCoordinates.isNotEmpty()) {
@@ -606,6 +627,193 @@ fun SegmentItem(segment: TrailSegment) {
                 color = Secondary
             )
         }
+    }
+}
+
+/**
+ * Weather card displaying current conditions and forecast.
+ */
+@Composable
+fun WeatherCard(
+    weatherForecast: WeatherForecast,
+    isLoading: Boolean,
+    onRefresh: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header with refresh button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Weather Conditions", style = MaterialTheme.typography.titleMedium)
+                }
+                IconButton(onClick = onRefresh, enabled = !isLoading) {
+                    Icon(Icons.Default.Refresh, "Refresh weather")
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Current weather
+            val current = weatherForecast.current
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        "${current.temperature.toInt()}°C",
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        current.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    Text(
+                        "Feels like ${current.feelsLike.toInt()}°C",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+                
+                Text(
+                    current.condition.icon,
+                    style = MaterialTheme.typography.displayLarge
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Weather details
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                WeatherDetailItem(
+                    icon = Icons.Default.Water,
+                    label = "Humidity",
+                    value = "${current.humidity}%"
+                )
+                WeatherDetailItem(
+                    icon = Icons.Default.Air,
+                    label = "Wind",
+                    value = "${current.windSpeed.toInt()} km/h"
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Safety rating
+            val safetyColor = Color(weatherForecast.trailSafetyRating.color)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = safetyColor.copy(alpha = 0.2f),
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        when (weatherForecast.trailSafetyRating) {
+                            SafetyRating.EXCELLENT, SafetyRating.GOOD -> Icons.Default.CheckCircle
+                            SafetyRating.MODERATE -> Icons.Default.Warning
+                            SafetyRating.POOR, SafetyRating.DANGEROUS -> Icons.Default.Error
+                        },
+                        contentDescription = null,
+                        tint = safetyColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "Trail Conditions: ${weatherForecast.trailSafetyRating.displayName}",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = safetyColor
+                    )
+                }
+            }
+            
+            // Forecast
+            if (weatherForecast.forecast.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                Text(
+                    "3-Day Forecast",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextSecondary
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                weatherForecast.forecast.forEach { day ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            day.date,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "${day.tempMin.toInt()}° / ${day.tempMax.toInt()}°",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            day.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary,
+                            modifier = Modifier.width(100.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeatherDetailItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+            tint = Primary
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = TextSecondary
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

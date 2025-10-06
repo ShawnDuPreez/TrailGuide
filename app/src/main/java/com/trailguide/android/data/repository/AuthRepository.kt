@@ -4,6 +4,7 @@ import android.util.Log
 import com.trailguide.android.data.model.AuthProvider
 import com.trailguide.android.data.model.User
 import com.trailguide.android.data.remote.NetworkResult
+import com.trailguide.android.data.security.BiometricAuthenticationManager
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.Google
@@ -25,7 +26,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class AuthRepository @Inject constructor(
-    private val supabaseClient: SupabaseClient
+    private val supabaseClient: SupabaseClient,
+    private val biometricAuthManager: BiometricAuthenticationManager
 ) {
     
     companion object {
@@ -252,4 +254,127 @@ class AuthRepository @Inject constructor(
             Log.e(TAG, "Session refresh error", e)
         }
     }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Check if biometric authentication is available on the device.
+     */
+    fun isBiometricAvailable(): Boolean {
+        return biometricAuthManager.canUseBiometric()
+    }
+    
+    /**
+     * Check if biometric credentials are stored for the current user.
+     */
+    fun hasBiometricCredentials(): Boolean {
+        return biometricAuthManager.hasStoredCredentials()
+    }
+    
+    /**
+     * Store user credentials securely using biometric authentication.
+     * @param activity FragmentActivity needed for biometric prompt
+     * @param email User's email
+     * @param password User's password
+     * @return Flow with success/error result
+     */
+    suspend fun storeBiometricCredentials(activity: androidx.fragment.app.FragmentActivity, email: String, password: String): Flow<NetworkResult<Unit>> = flow {
+        emit(NetworkResult.Loading)
+        
+        try {
+            if (!biometricAuthManager.canUseBiometric()) {
+                emit(NetworkResult.Error("Biometric authentication is not available on this device"))
+                return@flow
+            }
+            
+            val success = biometricAuthManager.storeCredentialsWithBiometric(activity, email, password)
+            if (success) {
+                emit(NetworkResult.Success(Unit))
+                Log.d(TAG, "Biometric credentials stored successfully")
+            } else {
+                emit(NetworkResult.Error("Failed to store biometric credentials"))
+            }
+        } catch (e: Exception) {
+            emit(NetworkResult.Error("Failed to store biometric credentials: ${e.message}", e))
+            Log.e(TAG, "Error storing biometric credentials", e)
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Sign in using biometric authentication.
+     * This retrieves stored credentials and signs in with Supabase.
+     * @param activity FragmentActivity needed for biometric prompt
+     * @return Flow with User result
+     */
+    suspend fun signInWithBiometric(activity: androidx.fragment.app.FragmentActivity): Flow<NetworkResult<User>> = flow {
+        emit(NetworkResult.Loading)
+        
+        try {
+            if (!biometricAuthManager.canUseBiometric()) {
+                emit(NetworkResult.Error("Biometric authentication is not available"))
+                return@flow
+            }
+            
+            // Authenticate with biometric
+            val authResult = biometricAuthManager.authenticateWithBiometric(
+                activity = activity,
+                title = "Sign in to TrailGuide",
+                subtitle = "Use your biometric to sign in"
+            )
+            
+            if (!authResult) {
+                emit(NetworkResult.Error("Biometric authentication failed"))
+                return@flow
+            }
+            
+            // Retrieve stored credentials
+            val credentials = biometricAuthManager.retrieveCredentialsWithBiometric(activity)
+            
+            if (credentials == null) {
+                emit(NetworkResult.Error("No stored credentials found"))
+                return@flow
+            }
+            
+            val (email, password) = credentials
+            
+            // Sign in with retrieved credentials
+            supabaseClient.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
+            
+            // Wait for session to be established
+            kotlinx.coroutines.delay(300)
+            
+            val supabaseUser = supabaseClient.auth.currentUserOrNull()
+            
+            if (supabaseUser != null) {
+                val user = User(
+                    id = supabaseUser.id,
+                    email = supabaseUser.email ?: email,
+                    displayName = supabaseUser.userMetadata?.get("full_name")?.jsonPrimitive?.content
+                        ?: supabaseUser.userMetadata?.get("display_name")?.jsonPrimitive?.content
+                        ?: email.substringBefore("@"),
+                    photoUrl = supabaseUser.userMetadata?.get("avatar_url")?.jsonPrimitive?.content,
+                    provider = AuthProvider.BIOMETRIC
+                )
+                
+                emit(NetworkResult.Success(user))
+                Log.d(TAG, "Successfully signed in with biometric: ${user.email}")
+            } else {
+                emit(NetworkResult.Error("Biometric sign-in succeeded but session not available"))
+                Log.e(TAG, "Supabase user is null after biometric sign-in")
+            }
+            
+        } catch (e: Exception) {
+            emit(NetworkResult.Error("Biometric sign-in failed: ${e.message}", e))
+            Log.e(TAG, "Biometric sign-in error", e)
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Clear stored biometric credentials.
+     */
+    fun clearBiometricCredentials() {
+        biometricAuthManager.clearStoredCredentials()
+        Log.d(TAG, "Biometric credentials cleared")
+    }
 }

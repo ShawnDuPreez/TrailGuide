@@ -218,7 +218,7 @@ class TrailsViewModel @Inject constructor(
             trailRepository.toggleFavorite(trailId, isFavorite).collect { result ->
                 when (result) {
                     is NetworkResult.Success -> {
-                        // Update local trail list
+                        // Update local trail list immediately for responsive UI
                         _trails.value = _trails.value.map { trail ->
                             if (trail.id == trailId) {
                                 trail.copy(isFavorite = isFavorite)
@@ -234,6 +234,13 @@ class TrailsViewModel @Inject constructor(
                 }
             }
         }
+    }
+    
+    /**
+     * Refresh the trails list
+     */
+    fun refresh() {
+        loadTrails()
     }
     
     /**

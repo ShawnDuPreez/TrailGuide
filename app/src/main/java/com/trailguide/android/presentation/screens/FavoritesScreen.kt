@@ -30,6 +30,12 @@ fun FavoritesScreen(
     var showCreateCollectionDialog by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     
+    // Refresh favorites when screen becomes visible
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        viewModel.refresh()
+        onDispose { }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,7 +72,7 @@ fun FavoritesScreen(
             
             selectedTab == 0 -> {
                 // Favorites tab
-                if (favoriteTrails.isEmpty()) {
+                if (favoriteTrails.isEmpty() && !isLoading) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -91,6 +97,12 @@ fun FavoritesScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(onClick = { viewModel.refresh() }) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Refresh")
+                            }
                         }
                     }
                 } else {

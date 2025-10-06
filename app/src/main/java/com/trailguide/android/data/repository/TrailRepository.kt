@@ -12,6 +12,8 @@ import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.OpenRouteClient
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.remote.safeApiCall
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -32,11 +34,19 @@ import kotlin.random.Random
 @Singleton
 class TrailRepository @Inject constructor(
     private val apiService: TrailApiService,
-    private val downloadedTrailDao: com.trailguide.android.data.local.DownloadedTrailDao
+    private val downloadedTrailDao: com.trailguide.android.data.local.DownloadedTrailDao,
+    private val supabaseClient: SupabaseClient
 ) {
     
     companion object {
         private const val TAG = "TrailRepository"
+    }
+    
+    /**
+     * Get current user ID from Supabase auth.
+     */
+    private fun getCurrentUserId(): String? {
+        return supabaseClient.auth.currentUserOrNull()?.id
     }
     
     /**
@@ -195,7 +205,7 @@ class TrailRepository @Inject constructor(
     }
     
     /**
-     * Fetch all trails from the API.
+     * Fetch all trails from the API with their favorite status.
      * Returns a Flow for reactive data handling.
      * Automatically generates routes for trails that don't have them.
      */
@@ -208,8 +218,29 @@ class TrailRepository @Inject constructor(
             is NetworkResult.Success -> {
                 val trails = result.data.map { it.toDomainModel() }
                 
+                // Load favorite status for each trail
+                val userId = getCurrentUserId()
+                val trailsWithFavorites = if (userId != null) {
+                    try {
+                        val favoritesResult = safeApiCall { apiService.getFavoriteTrails(userId) }
+                        val favoriteTrailIds = when (favoritesResult) {
+                            is NetworkResult.Success -> favoritesResult.data.map { it.id }.toSet()
+                            else -> emptySet()
+                        }
+                        
+                        trails.map { trail ->
+                            trail.copy(isFavorite = trail.id in favoriteTrailIds)
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load favorite status: ${e.message}")
+                        trails // Return trails without favorite status if loading fails
+                    }
+                } else {
+                    trails // Return trails without favorite status if user is not authenticated
+                }
+                
                 // Generate routes for trails that don't have them
-                val trailsWithRoutes = trails.map { trail ->
+                val trailsWithRoutes = trailsWithFavorites.map { trail ->
                     if (trail.routeCoordinates.isEmpty()) {
                         Log.d(TAG, "Generating route for trail: ${trail.name}")
                         
@@ -391,8 +422,22 @@ class TrailRepository @Inject constructor(
     fun toggleFavorite(trailId: String, isFavorite: Boolean): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
-        val result = safeApiCall {
-            apiService.toggleFavorite(trailId, mapOf("favorite" to isFavorite))
+        val userId = getCurrentUserId()
+        if (userId == null) {
+            emit(NetworkResult.Error("User not authenticated"))
+            return@flow
+        }
+        
+        val result = if (isFavorite) {
+            // Add to favorites
+            safeApiCall {
+                apiService.addFavorite(userId, mapOf("trail_id" to trailId))
+            }
+        } else {
+            // Remove from favorites
+            safeApiCall {
+                apiService.removeFavorite(userId, trailId)
+            }
         }
         
         when (result) {
@@ -414,7 +459,13 @@ class TrailRepository @Inject constructor(
     fun getFavoriteTrails(): Flow<NetworkResult<List<Trail>>> = flow {
         emit(NetworkResult.Loading)
         
-        val result = safeApiCall { apiService.getFavoriteTrails() }
+        val userId = getCurrentUserId()
+        if (userId == null) {
+            emit(NetworkResult.Error("User not authenticated"))
+            return@flow
+        }
+        
+        val result = safeApiCall { apiService.getFavoriteTrails(userId) }
         
         when (result) {
             is NetworkResult.Success -> {

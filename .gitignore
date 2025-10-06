@@ -185,3 +185,32 @@ NOTES.md
 TODO.md
 .personal/
 
+# ===== Development Helper Files & Documentation =====
+# Helper scripts created during development
+watch-and-run.bat
+watch-and-run.ps1
+watch-and-run-simple.ps1
+quick-install.bat
+start-server.bat
+start-server.ps1
+
+# Development documentation
+DEVELOPMENT.md
+SERVER_SETUP.md
+AUTH_SETUP_NOTE.md
+FIX_FAVORITES_RLS.md
+SUBMISSION_READY.md
+
+# Documentation folder (generated/temporary docs)
+docs/
+!docs/AI_USAGE.md
+!docs/PART1_RESEARCH_AND_DESIGN.md
+
+# Database setup files (may contain sensitive info)
+api-proxy/fix-rls-policies.sql
+api-proxy/database-setup.sql
+
+# Build and test scripts
+build-for-testing.bat
+fix-onedrive-lock.bat
+
