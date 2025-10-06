@@ -1,14 +1,6 @@
-# TrailGuide 🥾 - Android Hiking Companion
-
-# ST10294003/ST10268524
-
-## 🎥 Watch the Demo Video
-
-[![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/SYZOXxKP7lE)
-
+# TrailGuide 🥾 - Android Hiking Companion (ST10294003, ST10268524)
 **A comprehensive Android application demonstrating modern mobile development practices, authentication systems, and real-world API integration.**
-
-<div align="center">
+<div align="left">
 
 [![Android](https://img.shields.io/badge/Android-8.0+-green.svg)](https://android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-blue.svg)](https://kotlinlang.org)
@@ -16,6 +8,12 @@
 [![CI/CD](https://github.com/ShawnDuPreez/TrailGuide/workflows/Android%20CI/badge.svg)](https://github.com/ShawnDuPreez/TrailGuide/actions)
 
 </div>
+
+# 
+### Watch the Demo Video
+[![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/SYZOXxKP7lE)
+
+
 
 ---
 
