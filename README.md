@@ -445,7 +445,6 @@ This project demonstrates mastery of:
 
 - **API Documentation**: `api-proxy/README.md`
 - **Setup Guide**: `SETUP_GUIDE.md`
-- **Submission Guide**: `SUBMISSION_READY.md`
 
 ---
 
