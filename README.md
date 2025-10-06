@@ -1,5 +1,10 @@
-# ST10294003/ST10268524
 # TrailGuide 🥾 - Android Hiking Companion
+
+# ST10294003/ST10268524
+
+## 🎥 Watch the Demo Video
+
+[![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/SYZOXxKP7lE)
 
 **A comprehensive Android application demonstrating modern mobile development practices, authentication systems, and real-world API integration.**
 
@@ -16,13 +21,14 @@
 
 ## 📋 Project Overview
 
-TrailGuide is a full-stack Android application that demonstrates proficiency in:
-- **Android Development** with Kotlin and Jetpack Compose
-- **Authentication Systems** including Google OAuth and Biometric authentication
-- **RESTful API Development** with Node.js/Express
-- **Database Management** with Supabase PostgreSQL
-- **CI/CD Pipeline** implementation with GitHub Actions
-- **Modern Architecture Patterns** (MVVM, Repository Pattern, Dependency Injection)
+TrailGuide is a comprehensive hiking companion app designed for outdoor enthusiasts who want to discover, plan, and track their hiking adventures. Built with modern Android development practices, it combines beautiful UI design with powerful functionality to create an exceptional user experience.
+
+### 🎯 **Core Purpose**
+- **Trail Discovery**: Find hiking trails near you with detailed information
+- **Interactive Mapping**: Visualize trails with Google Maps integration
+- **Personal Management**: Save favorites and track your hiking progress
+- **Offline Capability**: Download trails for adventures without internet
+- **Community Features**: Share reviews and experiences with fellow hikers
 
 ---
 
@@ -45,6 +51,28 @@ TrailGuide is a full-stack Android application that demonstrates proficiency in:
 - ✅ **Authentication Flow** - Multiple auth methods
 - ✅ **CI/CD Pipeline** - Automated testing and deployment
 - ✅ **Unit Testing** - Comprehensive test coverage
+
+---
+
+## 📱 App Screenshots
+
+<div align="center">
+
+### Trail Discovery & Mapping
+<img src="screenshots/trails.png" alt="Trails List" width="200"/>
+<img src="screenshots/map.png" alt="Interactive Map" width="200"/>
+<img src="screenshots/trail-details.png" alt="Trail Details" width="200"/>
+
+*Browse trails, explore interactive maps, and get detailed trail information*
+
+### Personal Features
+<img src="screenshots/favourite.png" alt="Favorites" width="200"/>
+<img src="screenshots/download.png" alt="Offline Downloads" width="200"/>
+<img src="screenshots/profile.png" alt="User Profile" width="200"/>
+
+*Manage favorites, download for offline use, and personalize your experience*
+
+</div>
 
 ---
 
