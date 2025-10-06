@@ -5,6 +5,7 @@ import com.trailguide.android.data.local.DownloadedTrailDao
 import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.repository.TrailRepository
+import io.github.jan.supabase.SupabaseClient
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -31,6 +32,9 @@ class TrailRepositoryTest {
     @Mock
     private lateinit var downloadedTrailDao: DownloadedTrailDao
     
+    @Mock
+    private lateinit var supabaseClient: SupabaseClient
+    
     private lateinit var repository: TrailRepository
     
     private val mockTrailDto = TrailDto(
@@ -51,7 +55,7 @@ class TrailRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        repository = TrailRepository(apiService, downloadedTrailDao)
+        repository = TrailRepository(apiService, downloadedTrailDao, supabaseClient)
     }
     
     @Test

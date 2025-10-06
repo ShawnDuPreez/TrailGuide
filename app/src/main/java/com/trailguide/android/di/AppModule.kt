@@ -14,6 +14,7 @@ import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.data.repository.PreferencesRepository
 import com.trailguide.android.data.repository.TrailRepository
 import com.trailguide.android.data.repository.WeatherRepository
+import com.trailguide.android.data.security.BiometricAuthenticationManager
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import dagger.Module
@@ -129,14 +130,26 @@ object AppModule {
     }
     
     /**
+     * Provides Biometric Authentication Manager.
+     */
+    @Provides
+    @Singleton
+    fun provideBiometricAuthenticationManager(
+        @ApplicationContext context: Context
+    ): BiometricAuthenticationManager {
+        return BiometricAuthenticationManager(context)
+    }
+    
+    /**
      * Provides Auth Repository with Supabase client.
      */
     @Provides
     @Singleton
     fun provideAuthRepository(
-        supabaseClient: SupabaseClient
+        supabaseClient: SupabaseClient,
+        biometricAuthManager: BiometricAuthenticationManager
     ): AuthRepository {
-        return AuthRepository(supabaseClient)
+        return AuthRepository(supabaseClient, biometricAuthManager)
     }
     
     /**

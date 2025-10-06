@@ -17,6 +17,7 @@ data class User(
 enum class AuthProvider {
     GOOGLE,
     EMAIL,
+    BIOMETRIC,
     ANONYMOUS
 }
 

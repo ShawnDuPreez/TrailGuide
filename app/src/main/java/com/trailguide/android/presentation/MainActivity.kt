@@ -12,7 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.trailguide.android.data.repository.TrailRepository
-import com.trailguide.android.presentation.navigation.TrailGuideApp
+import com.trailguide.android.presentation.AuthWrapper
 import com.trailguide.android.presentation.theme.TrailGuideTheme
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jan.supabase.SupabaseClient
@@ -56,7 +56,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    TrailGuideApp()
+                    AuthWrapper()
                 }
             }
         }

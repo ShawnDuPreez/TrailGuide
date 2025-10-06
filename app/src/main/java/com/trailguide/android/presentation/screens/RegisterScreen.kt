@@ -30,7 +30,7 @@ import com.trailguide.android.presentation.viewmodel.AuthViewModel
 fun RegisterScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToLogin: () -> Unit,
-    onRegisterSuccess: () -> Unit
+    onRegisterSuccess: (com.trailguide.android.data.model.User) -> Unit
 ) {
     val name by viewModel.name.collectAsState()
     val email by viewModel.email.collectAsState()
@@ -38,15 +38,16 @@ fun RegisterScreen(
     val confirmPassword by viewModel.confirmPassword.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val authenticatedUser by viewModel.authenticatedUser.collectAsState()
     
     val focusManager = LocalFocusManager.current
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     
     // Observe registration success
-    LaunchedEffect(viewModel.isAuthenticated.collectAsState().value) {
-        if (viewModel.isAuthenticated.value) {
-            onRegisterSuccess()
+    LaunchedEffect(authenticatedUser) {
+        authenticatedUser?.let { user ->
+            onRegisterSuccess(user)
         }
     }
     

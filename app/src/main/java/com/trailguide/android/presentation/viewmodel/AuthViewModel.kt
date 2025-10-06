@@ -1,5 +1,6 @@
 package com.trailguide.android.presentation.viewmodel
 
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trailguide.android.data.repository.AuthRepository
@@ -37,6 +38,9 @@ class AuthViewModel @Inject constructor(
     private val _isAuthenticated = MutableStateFlow(false)
     val isAuthenticated: StateFlow<Boolean> = _isAuthenticated.asStateFlow()
     
+    private val _authenticatedUser = MutableStateFlow<com.trailguide.android.data.model.User?>(null)
+    val authenticatedUser: StateFlow<com.trailguide.android.data.model.User?> = _authenticatedUser.asStateFlow()
+    
     fun setName(value: String) {
         _name.value = value
         _errorMessage.value = null
@@ -68,6 +72,7 @@ class AuthViewModel @Inject constructor(
                         _isLoading.value = true
                     }
                     is com.trailguide.android.data.remote.NetworkResult.Success -> {
+                        _authenticatedUser.value = result.data
                         _isAuthenticated.value = true
                         _isLoading.value = false
                     }
@@ -97,6 +102,7 @@ class AuthViewModel @Inject constructor(
                         _isLoading.value = true
                     }
                     is com.trailguide.android.data.remote.NetworkResult.Success -> {
+                        _authenticatedUser.value = result.data
                         _isAuthenticated.value = true
                         _isLoading.value = false
                     }
@@ -111,6 +117,97 @@ class AuthViewModel @Inject constructor(
     
     fun clearError() {
         _errorMessage.value = null
+    }
+    
+    /**
+     * Check if biometric authentication is available.
+     */
+    fun isBiometricAvailable(): Boolean {
+        return authRepository.isBiometricAvailable()
+    }
+    
+    /**
+     * Check if biometric credentials are stored.
+     */
+    fun hasBiometricCredentials(): Boolean {
+        return authRepository.hasBiometricCredentials()
+    }
+    
+    /**
+     * Sign in using biometric authentication.
+     */
+    fun loginWithBiometric(activity: FragmentActivity) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            
+            authRepository.signInWithBiometric(activity).collect { result ->
+                when (result) {
+                    is com.trailguide.android.data.remote.NetworkResult.Loading -> {
+                        _isLoading.value = true
+                    }
+                    is com.trailguide.android.data.remote.NetworkResult.Success -> {
+                        _authenticatedUser.value = result.data
+                        _isAuthenticated.value = true
+                        _isLoading.value = false
+                    }
+                    is com.trailguide.android.data.remote.NetworkResult.Error -> {
+                        _errorMessage.value = result.message
+                        _isLoading.value = false
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Store biometric credentials after successful login.
+     */
+    fun storeBiometricCredentials() {
+        viewModelScope.launch {
+            if (_email.value.isNotBlank() && _password.value.isNotBlank()) {
+                authRepository.storeBiometricCredentials(_email.value, _password.value).collect { result ->
+                    when (result) {
+                        is com.trailguide.android.data.remote.NetworkResult.Success -> {
+                            // Credentials stored successfully
+                        }
+                        is com.trailguide.android.data.remote.NetworkResult.Error -> {
+                            _errorMessage.value = "Failed to enable biometric login: ${result.message}"
+                        }
+                        is com.trailguide.android.data.remote.NetworkResult.Loading -> {
+                            // Loading state
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Sign in with Google SSO.
+     */
+    fun loginWithGoogle() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            
+            authRepository.signInWithGoogle().collect { result ->
+                when (result) {
+                    is com.trailguide.android.data.remote.NetworkResult.Loading -> {
+                        _isLoading.value = true
+                    }
+                    is com.trailguide.android.data.remote.NetworkResult.Success -> {
+                        _authenticatedUser.value = result.data
+                        _isAuthenticated.value = true
+                        _isLoading.value = false
+                    }
+                    is com.trailguide.android.data.remote.NetworkResult.Error -> {
+                        _errorMessage.value = result.message
+                        _isLoading.value = false
+                    }
+                }
+            }
+        }
     }
 }
 
