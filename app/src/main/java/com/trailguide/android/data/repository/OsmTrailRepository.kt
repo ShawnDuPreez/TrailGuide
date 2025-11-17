@@ -8,6 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.double
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +27,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class OsmTrailRepository @Inject constructor(
-    private val overpassApiService: OverpassApiService
+    private val overpassApiService: OverpassApiService,
+    private val nominatimApiService: NominatimApiService
 ) {
     
     companion object {
@@ -307,5 +311,353 @@ class OsmTrailRepository @Inject constructor(
                 Math.sin(dLon / 2) * Math.sin(dLon / 2)
         val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
         return R * c
+    }
+    
+    // ===== BOUNDARY-BASED TRAIL QUERIES =====
+    
+    /**
+     * Search for a place boundary by name (for nature reserves, parks, etc.)
+     * Uses Nominatim to find OSM boundaries
+     * 
+     * @param placeName Name of the place to search
+     * @return Flow of NetworkResult with boundary data
+     */
+    fun searchPlaceBoundary(placeName: String): Flow<NetworkResult<OsmBoundary>> = flow {
+        emit(NetworkResult.Loading)
+        
+        try {
+            Log.d(TAG, "Searching for place boundary: $placeName")
+            
+            val response = nominatimApiService.searchPlace(query = placeName)
+            
+            if (!response.isSuccessful || response.body() == null) {
+                emit(NetworkResult.Error("Failed to find place: ${response.message()}"))
+                return@flow
+            }
+            
+            val results = response.body()!!
+            if (results.isEmpty()) {
+                emit(NetworkResult.Error("No results found for: $placeName"))
+                return@flow
+            }
+            
+            // Prefer relations (they're usually parks/reserves), then ways, then nodes
+            val bestResult = results.firstOrNull { it.osmType == "relation" }
+                ?: results.firstOrNull { it.osmType == "way" }
+                ?: results.first()
+            
+            val boundary = parseBoundaryFromNominatim(bestResult)
+            
+            Log.d(TAG, "Found boundary: ${boundary.name} (OSM ${boundary.osmType} ${boundary.osmId})")
+            emit(NetworkResult.Success(boundary))
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching place boundary", e)
+            emit(NetworkResult.Error("Search failed: ${e.message}", e))
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Get boundary for a specific location using name search + proximity verification
+     * Much more accurate than reverse geocoding for nature reserves
+     * 
+     * @param placeName Name of the place from Google Places
+     * @param latitude Location latitude
+     * @param longitude Location longitude
+     * @return Flow of NetworkResult with boundary data
+     */
+    fun getBoundaryByNameAndLocation(
+        placeName: String,
+        latitude: Double,
+        longitude: Double
+    ): Flow<NetworkResult<OsmBoundary>> = flow {
+        emit(NetworkResult.Loading)
+        
+        try {
+            Log.d(TAG, "Searching for boundary: '$placeName' near ($latitude, $longitude)")
+            
+            // Search by name first (more accurate for specific places)
+            val response = nominatimApiService.searchPlace(query = placeName)
+            
+            if (!response.isSuccessful || response.body() == null) {
+                Log.w(TAG, "Name search failed: ${response.message()}")
+                emit(NetworkResult.Error("Could not find boundary for $placeName"))
+                return@flow
+            }
+            
+            val results = response.body()!!
+            if (results.isEmpty()) {
+                Log.w(TAG, "No results found for: $placeName")
+                emit(NetworkResult.Error("No boundary found"))
+                return@flow
+            }
+            
+            Log.d(TAG, "Found ${results.size} results for '$placeName'")
+            
+            // Find the result closest to the clicked location
+            val sortedResults = results
+                .map { result ->
+                    val resultLat = result.lat.toDoubleOrNull() ?: 0.0
+                    val resultLon = result.lon.toDoubleOrNull() ?: 0.0
+                    val distance = calculateDistanceMeters(
+                        latitude, longitude,
+                        resultLat, resultLon
+                    )
+                    Pair(result, distance)
+                }
+                .sortedBy { it.second } // Closest first
+            
+            // Take the closest result that's within 5km
+            val closestMatch = sortedResults.firstOrNull { it.second < 5000 }
+            
+            if (closestMatch == null) {
+                Log.w(TAG, "No results within 5km of clicked location")
+                emit(NetworkResult.Error("No nearby boundary found"))
+                return@flow
+            }
+            
+            val (result, distance) = closestMatch
+            val boundary = parseBoundaryFromNominatim(result)
+            
+            Log.d(TAG, "✓ Using: ${boundary.name} (${distance.toInt()}m away, ${boundary.polygon.size} polygon points)")
+            
+            // If polygon is empty, this isn't useful
+            if (boundary.polygon.isEmpty()) {
+                Log.w(TAG, "Selected boundary has no polygon, using bounding box fallback")
+                emit(NetworkResult.Error("No polygon available"))
+                return@flow
+            }
+            
+            emit(NetworkResult.Success(boundary))
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting boundary by name", e)
+            emit(NetworkResult.Error("Search failed: ${e.message}", e))
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Calculate distance in meters between two lat/lon points
+     */
+    private fun calculateDistanceMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371000.0 // Earth radius in meters
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return R * c
+    }
+    
+    /**
+     * Fetch all hiking trails within a specific boundary
+     * This is THE KEY FUNCTION for showing trails inside nature reserves
+     * 
+     * @param boundary The OSM boundary to search within
+     * @return Flow of NetworkResult with trails inside the boundary
+     */
+    fun fetchTrailsInBoundary(
+        boundary: OsmBoundary
+    ): Flow<NetworkResult<List<OsmTrail>>> = flow {
+        emit(NetworkResult.Loading)
+        
+        try {
+            Log.d(TAG, "========================================")
+            Log.d(TAG, "Fetching trails in boundary: ${boundary.name}")
+            Log.d(TAG, "OSM ${boundary.osmType} ${boundary.osmId}")
+            Log.d(TAG, "Center: (${boundary.centerLat}, ${boundary.centerLon})")
+            Log.d(TAG, "Polygon points: ${boundary.polygon.size}")
+            
+            // Special handling for bounding box fallback (no real OSM ID)
+            if (boundary.osmType == "bbox") {
+                Log.d(TAG, "Using bounding box search (no OSM boundary found)")
+                val bbox = boundary.boundingBox!!
+                val bboxQuery = OverpassApiService.buildBBoxTrailsQuery(
+                    south = bbox.south,
+                    west = bbox.west,
+                    north = bbox.north,
+                    east = bbox.east
+                )
+                
+                Log.d(TAG, "BBox Query: [${'$'}{bbox.south},${'$'}{bbox.west},${'$'}{bbox.north},${'$'}{bbox.east}]")
+                val response = overpassApiService.executeQuery(bboxQuery)
+                
+                if (response.isSuccessful && response.body() != null) {
+                    val trails = parseTrailsFromResponse(response.body()!!)
+                    Log.d(TAG, "✓ Found ${trails.size} trails via bounding box")
+                    emit(NetworkResult.Success(trails))
+                } else {
+                    Log.e(TAG, "✗ Bounding box query failed: ${response.message()}")
+                    emit(NetworkResult.Error("No trails found in area"))
+                }
+                return@flow
+            }
+            
+            // Try area-based query first (for real OSM boundaries)
+            Log.d(TAG, "Building area query for ${boundary.osmType} ${boundary.osmId}")
+            val query = OverpassApiService.buildBoundaryTrailsQuery(
+                osmId = boundary.osmId,
+                osmType = boundary.osmType
+            )
+            
+            Log.d(TAG, "Executing Overpass area query...")
+            var response = overpassApiService.executeQuery(query)
+            var trails: List<OsmTrail> = emptyList()
+            
+            // If area query fails, fallback to bounding box
+            if (!response.isSuccessful) {
+                Log.w(TAG, "Area query failed: ${response.message()}")
+                
+                if (boundary.boundingBox != null) {
+                    Log.d(TAG, "Trying bounding box fallback...")
+                    val bbox = boundary.boundingBox
+                    val bboxQuery = OverpassApiService.buildBBoxTrailsQuery(
+                        south = bbox.south,
+                        west = bbox.west,
+                        north = bbox.north,
+                        east = bbox.east
+                    )
+                    response = overpassApiService.executeQuery(bboxQuery)
+                    
+                    if (!response.isSuccessful) {
+                        Log.e(TAG, "Bounding box fallback also failed")
+                    }
+                } else {
+                    Log.w(TAG, "No bounding box available for fallback")
+                }
+            }
+            
+            if (!response.isSuccessful) {
+                emit(NetworkResult.Error("Failed to fetch trails: ${response.message()}"))
+                return@flow
+            }
+            
+            val overpassResponse = response.body()
+            if (overpassResponse != null) {
+                trails = parseTrailsFromResponse(overpassResponse)
+                Log.d(TAG, "✓ Successfully parsed ${trails.size} trails in ${boundary.name}")
+                trails.forEachIndexed { index, trail ->
+                    Log.d(TAG, "  Trail ${index + 1}: ${trail.name} (${trail.geometry.size} points, ${String.format("%.2f", trail.distance / 1000)}km)")
+                }
+            } else {
+                Log.w(TAG, "Empty response body from Overpass")
+            }
+            
+            Log.d(TAG, "========================================")
+            emit(NetworkResult.Success(trails))
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching boundary trails", e)
+            emit(NetworkResult.Error("Failed to fetch trails: ${e.message}", e))
+        }
+    }.flowOn(Dispatchers.IO)
+    
+    /**
+     * Parse Nominatim result into OsmBoundary
+     */
+    private fun parseBoundaryFromNominatim(result: NominatimResult): OsmBoundary {
+        val centerLat = result.lat.toDoubleOrNull() ?: 0.0
+        val centerLon = result.lon.toDoubleOrNull() ?: 0.0
+        
+        // Parse polygon from GeoJSON
+        val polygon = parseGeoJsonPolygon(result.geoJson)
+        
+        // Parse bounding box
+        val boundingBox = result.boundingBox?.let { bbox ->
+            if (bbox.size >= 4) {
+                BoundingBox(
+                    south = bbox[0].toDoubleOrNull() ?: 0.0,
+                    north = bbox[1].toDoubleOrNull() ?: 0.0,
+                    west = bbox[2].toDoubleOrNull() ?: 0.0,
+                    east = bbox[3].toDoubleOrNull() ?: 0.0
+                )
+            } else null
+        }
+        
+        return OsmBoundary(
+            osmId = result.osmId,
+            osmType = result.osmType,
+            name = result.displayName,
+            centerLat = centerLat,
+            centerLon = centerLon,
+            polygon = polygon,
+            boundingBox = boundingBox
+        )
+    }
+    
+    /**
+     * Parse GeoJSON polygon to List<LatLng>
+     */
+    private fun parseGeoJsonPolygon(geoJson: GeoJsonGeometry?): List<LatLng> {
+        if (geoJson == null) return emptyList()
+        
+        return try {
+            when (geoJson.type) {
+                "Polygon" -> {
+                    // Parse coordinates array
+                    val jsonArray = geoJson.coordinates
+                    val coords = parsePolygonCoordinates(jsonArray)
+                    coords
+                }
+                "MultiPolygon" -> {
+                    // Take first polygon
+                    val jsonArray = geoJson.coordinates
+                    val coords = parseMultiPolygonCoordinates(jsonArray)
+                    coords
+                }
+                "Point" -> {
+                    // Single point, create small polygon around it
+                    emptyList()
+                }
+                else -> emptyList()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse GeoJSON polygon: ${e.message}")
+            emptyList()
+        }
+    }
+    
+    /**
+     * Parse polygon coordinates from JSON
+     */
+    private fun parsePolygonCoordinates(jsonElement: kotlinx.serialization.json.JsonElement): List<LatLng> {
+        val coords = mutableListOf<LatLng>()
+        try {
+            val outerRing = jsonElement.jsonArray[0]
+            outerRing.jsonArray.forEach { point ->
+                val arr = point.jsonArray
+                if (arr.size >= 2) {
+                    val lon = arr[0].jsonPrimitive.double
+                    val lat = arr[1].jsonPrimitive.double
+                    coords.add(LatLng(lat, lon))
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error parsing polygon coordinates: ${e.message}")
+        }
+        return coords
+    }
+    
+    /**
+     * Parse multi-polygon coordinates from JSON
+     */
+    private fun parseMultiPolygonCoordinates(jsonElement: kotlinx.serialization.json.JsonElement): List<LatLng> {
+        val coords = mutableListOf<LatLng>()
+        try {
+            val firstPolygon = jsonElement.jsonArray[0]
+            val outerRing = firstPolygon.jsonArray[0]
+            outerRing.jsonArray.forEach { point ->
+                val arr = point.jsonArray
+                if (arr.size >= 2) {
+                    val lon = arr[0].jsonPrimitive.double
+                    val lat = arr[1].jsonPrimitive.double
+                    coords.add(LatLng(lat, lon))
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error parsing multi-polygon coordinates: ${e.message}")
+        }
+        return coords
     }
 }

@@ -1,13 +1,20 @@
 package com.trailguide.android.services
 
+import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.trailguide.android.data.datastore.UserPreferences
+import com.trailguide.android.data.dto.FcmTokenRequest
+import com.trailguide.android.data.remote.AuthApiService
+import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.util.NotificationUtil
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,8 +28,22 @@ class TrailGuideMessagingService : FirebaseMessagingService() {
     @Inject
     lateinit var userPreferences: UserPreferences
     
+    @Inject
+    lateinit var authRepository: AuthRepository
+    
+    @Inject
+    lateinit var authApiService: AuthApiService
+    
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    
+    private val prefs by lazy {
+        applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+    
     companion object {
         private const val TAG = "FCMService"
+        private const val PREFS_NAME = "trailguide_fcm"
+        private const val KEY_FCM_TOKEN = "fcm_token"
         
         // Notification types
         const val TYPE_WEATHER_ALERT = "weather_alert"
@@ -34,6 +55,19 @@ class TrailGuideMessagingService : FirebaseMessagingService() {
         super.onCreate()
         // Create notification channels
         NotificationUtil.createNotificationChannels(applicationContext)
+        
+        // Attempt to upload any cached token
+        serviceScope.launch {
+            val cachedToken = prefs.getString(KEY_FCM_TOKEN, null)
+            if (!cachedToken.isNullOrBlank()) {
+                registerTokenWithBackend(cachedToken)
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
     }
     
     /**
@@ -42,10 +76,10 @@ class TrailGuideMessagingService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d(TAG, "New FCM token: $token")
-        
-        // TODO: Send token to backend
-        // This should be done via ProfileRepository or AuthRepository
-        // For now, just log it
+        storeTokenLocally(token)
+        serviceScope.launch {
+            registerTokenWithBackend(token)
+        }
     }
     
     /**
@@ -57,7 +91,7 @@ class TrailGuideMessagingService : FirebaseMessagingService() {
         Log.d(TAG, "Message received from: ${message.from}")
         
         // Check if notifications are enabled
-        CoroutineScope(Dispatchers.IO).launch {
+        serviceScope.launch {
             val notificationsEnabled = userPreferences.notificationsEnabledFlow.first()
             
             if (!notificationsEnabled) {
@@ -146,6 +180,37 @@ class TrailGuideMessagingService : FirebaseMessagingService() {
             friendName,
             trailName
         )
+    }
+    
+    private fun storeTokenLocally(token: String) {
+        prefs.edit().putString(KEY_FCM_TOKEN, token).apply()
+    }
+    
+    private suspend fun registerTokenWithBackend(token: String) {
+        val userId = authRepository.currentUser?.id
+        if (userId.isNullOrBlank()) {
+            Log.w(TAG, "Skipping FCM token upload: user not authenticated")
+            return
+        }
+        
+        val deviceInfo = "${Build.MANUFACTURER} ${Build.MODEL} (SDK ${Build.VERSION.SDK_INT})"
+        try {
+            val response = authApiService.updateFcmToken(
+                FcmTokenRequest(
+                    userId = userId,
+                    fcmToken = token,
+                    deviceInfo = deviceInfo
+                )
+            )
+            
+            if (response.isSuccessful) {
+                Log.d(TAG, "FCM token registered with backend")
+            } else {
+                Log.e(TAG, "Failed to register FCM token: HTTP ${response.code()} ${response.message()}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error uploading FCM token: ${e.message}", e)
+        }
     }
 }
 

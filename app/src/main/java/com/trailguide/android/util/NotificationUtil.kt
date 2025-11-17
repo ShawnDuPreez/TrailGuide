@@ -20,12 +20,14 @@ object NotificationUtil {
     const val CHANNEL_NEW_TRAILS = "new_trails"
     const val CHANNEL_FRIEND_ACTIVITY = "friend_activity"
     const val CHANNEL_SYNC = "sync_status"
+    const val CHANNEL_NAVIGATION = "navigation_tracking"
     
     // Notification IDs
     const val NOTIFICATION_ID_WEATHER = 1001
     const val NOTIFICATION_ID_NEW_TRAIL = 1002
     const val NOTIFICATION_ID_FRIEND_REVIEW = 1003
     const val NOTIFICATION_ID_SYNC = 1004
+    const val NOTIFICATION_ID_NAVIGATION = 2001
     
     /**
      * Create notification channels (required for Android O+).
@@ -71,8 +73,24 @@ object NotificationUtil {
                 description = "Sync status updates"
             }
             
+            // Navigation channel (high priority persistent notification)
+            val navigationChannel = NotificationChannel(
+                CHANNEL_NAVIGATION,
+                "Navigation Tracking",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Live hiking navigation updates"
+                setShowBadge(false)
+            }
+
             notificationManager.createNotificationChannels(
-                listOf(weatherChannel, newTrailsChannel, friendActivityChannel, syncChannel)
+                listOf(
+                    weatherChannel,
+                    newTrailsChannel,
+                    friendActivityChannel,
+                    syncChannel,
+                    navigationChannel
+                )
             )
         }
     }
@@ -218,6 +236,11 @@ object NotificationUtil {
     fun cancelSyncNotification(context: Context) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(NOTIFICATION_ID_SYNC)
+    }
+
+    fun cancelNavigationNotification(context: Context) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(NOTIFICATION_ID_NAVIGATION)
     }
 }
 

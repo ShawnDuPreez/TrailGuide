@@ -1,10 +1,15 @@
 package com.trailguide.android.presentation.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Star
@@ -18,6 +23,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import com.trailguide.android.data.model.Difficulty
 import com.trailguide.android.data.model.SafetyRating
@@ -36,8 +43,17 @@ fun TrailDetailsScreen(
     viewModel: TrailDetailsViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit,
     onNavigateToMap: () -> Unit,
-    onStartHike: () -> Unit = {}
+    onStartHike: (Trail) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    var hasLocationPermission by remember {
+        mutableStateOf(hasRequiredPermissions(context))
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions.any { it.value }
+    }
     val trail by viewModel.trail.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
@@ -72,7 +88,18 @@ fun TrailDetailsScreen(
                         trail = trail!!,
                         isFavorite = isFavorite,
                         onToggleFavorite = { viewModel.toggleFavorite() },
-                        onStartHike = onStartHike,
+                    onStartHike = { selectedTrail ->
+                        if (hasLocationPermission) {
+                            onStartHike(selectedTrail)
+                        } else {
+                            permissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        }
+                    },
                         onDownload = { viewModel.downloadTrail() },
                         onNavigateToMap = onNavigateToMap,
                         weatherForecast = weatherForecast,
@@ -106,7 +133,7 @@ fun TrailDetailsContent(
     trail: Trail,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
-    onStartHike: () -> Unit,
+    onStartHike: (Trail) -> Unit,
     onDownload: () -> Unit,
     onNavigateToMap: () -> Unit,
     weatherForecast: WeatherForecast? = null,
@@ -171,7 +198,7 @@ fun TrailDetailsContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = onStartHike,
+                    onClick = { onStartHike(trail) },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Flag, contentDescription = null)
@@ -336,6 +363,19 @@ fun TrailDetailsContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+private fun hasRequiredPermissions(context: Context): Boolean {
+    val fine = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+    val coarse = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+    return fine == PackageManager.PERMISSION_GRANTED ||
+        coarse == PackageManager.PERMISSION_GRANTED
 }
 
 @Composable

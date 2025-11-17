@@ -1,6 +1,7 @@
 package com.trailguide.android
 
 import android.app.Application
+import com.trailguide.android.util.NotificationUtil
 import dagger.hilt.android.HiltAndroidApp
 
 /**
@@ -12,7 +13,7 @@ class TrailGuideApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()
-        // Initialize any global application-level components here
+        NotificationUtil.createNotificationChannels(this)
     }
 }
 

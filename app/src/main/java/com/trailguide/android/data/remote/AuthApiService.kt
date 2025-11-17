@@ -38,5 +38,11 @@ interface AuthApiService {
      */
     @POST("api/auth/refresh")
     suspend fun refreshToken(@Body refreshToken: Map<String, String>): Response<OAuthTokenResponse>
+
+    /**
+     * POST /api/users/fcm-token - Register or update device FCM token
+     */
+    @POST("api/users/fcm-token")
+    suspend fun updateFcmToken(@Body request: FcmTokenRequest): Response<Unit>
 }
 

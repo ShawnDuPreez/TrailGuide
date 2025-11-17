@@ -2,9 +2,8 @@ package com.trailguide.android.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.trailguide.android.data.model.Trail
-import com.trailguide.android.data.remote.NetworkResult
-import com.trailguide.android.data.repository.TrailRepository
+import com.trailguide.android.data.repository.OfflineMapRepository
+import com.trailguide.android.data.repository.OfflineAreaMetadata
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,15 +13,15 @@ import javax.inject.Inject
 
 /**
  * ViewModel for the Downloads screen.
- * Manages offline trail downloads and local storage.
+ * Manages offline area downloads and local storage.
  */
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
-    private val repository: TrailRepository
+    private val offlineRepository: OfflineMapRepository
 ) : ViewModel() {
     
-    private val _downloadedTrails = MutableStateFlow<List<Trail>>(emptyList())
-    val downloadedTrails: StateFlow<List<Trail>> = _downloadedTrails.asStateFlow()
+    private val _offlineAreas = MutableStateFlow<List<OfflineAreaMetadata>>(emptyList())
+    val offlineAreas: StateFlow<List<OfflineAreaMetadata>> = _offlineAreas.asStateFlow()
     
     private val _storageUsedBytes = MutableStateFlow(0L)
     val storageUsedBytes: StateFlow<Long> = _storageUsedBytes.asStateFlow()
@@ -40,115 +39,64 @@ class DownloadsViewModel @Inject constructor(
     val successMessage: StateFlow<String?> = _successMessage.asStateFlow()
     
     init {
-        loadDownloadedTrails()
-        loadStorageInfo()
+        loadOfflineAreas()
     }
     
     /**
-     * Load all downloaded trails from local storage.
+     * Load all offline areas from local storage.
      */
-    private fun loadDownloadedTrails() {
-        viewModelScope.launch {
-            repository.getDownloadedTrails().collect { trails ->
-                _downloadedTrails.value = trails
-            }
-        }
-    }
-    
-    /**
-     * Load storage information (used space and download count).
-     */
-    fun loadStorageInfo() {
+    private fun loadOfflineAreas() {
         viewModelScope.launch {
             try {
-                _storageUsedBytes.value = repository.getTotalStorageUsed()
-                _downloadCount.value = repository.getDownloadCount()
+                val areas = offlineRepository.getOfflineAreas()
+                _offlineAreas.value = areas
+                _storageUsedBytes.value = areas.sumOf { it.fileSize }
             } catch (e: Exception) {
-                // Silently fail - not critical
+                _errorMessage.value = "Failed to load offline areas: ${e.message}"
             }
         }
     }
     
     /**
-     * Download a trail for offline use.
+     * Delete an offline area.
      */
-    fun downloadTrail(trail: Trail) {
+    fun deleteOfflineArea(areaName: String) {
         viewModelScope.launch {
-            repository.downloadTrail(trail).collect { result ->
-                when (result) {
-                    is NetworkResult.Loading -> {
-                        _isLoading.value = true
-                        _errorMessage.value = null
-                    }
-                    is NetworkResult.Success -> {
-                        _isLoading.value = false
-                        _successMessage.value = "${trail.name} downloaded for offline use"
-                        loadStorageInfo()
-                    }
-                    is NetworkResult.Error -> {
-                        _isLoading.value = false
-                        _errorMessage.value = result.message
-                    }
+            try {
+                _isLoading.value = true
+                val success = offlineRepository.deleteOfflineArea(areaName)
+                _isLoading.value = false
+                if (success) {
+                    _successMessage.value = "$areaName removed from offline areas"
+                    loadOfflineAreas()
+                } else {
+                    _errorMessage.value = "Failed to delete $areaName"
                 }
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _errorMessage.value = "Error deleting area: ${e.message}"
             }
         }
     }
     
     /**
-     * Delete a downloaded trail.
+     * Delete all offline areas.
      */
-    fun deleteDownload(trailId: String, trailName: String) {
+    fun deleteAllOfflineAreas() {
         viewModelScope.launch {
-            repository.deleteDownloadedTrail(trailId).collect { result ->
-                when (result) {
-                    is NetworkResult.Loading -> {
-                        _isLoading.value = true
-                        _errorMessage.value = null
-                    }
-                    is NetworkResult.Success -> {
-                        _isLoading.value = false
-                        _successMessage.value = "$trailName removed from downloads"
-                        loadStorageInfo()
-                    }
-                    is NetworkResult.Error -> {
-                        _isLoading.value = false
-                        _errorMessage.value = result.message
-                    }
+            try {
+                _isLoading.value = true
+                _offlineAreas.value.forEach { area ->
+                    offlineRepository.deleteOfflineArea(area.name)
                 }
+                _isLoading.value = false
+                _successMessage.value = "All offline areas cleared"
+                loadOfflineAreas()
+            } catch (e: Exception) {
+                _isLoading.value = false
+                _errorMessage.value = "Error clearing all areas: ${e.message}"
             }
         }
-    }
-    
-    /**
-     * Delete all downloaded trails.
-     */
-    fun deleteAllDownloads() {
-        viewModelScope.launch {
-            repository.deleteAllDownloads().collect { result ->
-                when (result) {
-                    is NetworkResult.Loading -> {
-                        _isLoading.value = true
-                        _errorMessage.value = null
-                    }
-                    is NetworkResult.Success -> {
-                        _isLoading.value = false
-                        _successMessage.value = "All downloads cleared"
-                        loadStorageInfo()
-                    }
-                    is NetworkResult.Error -> {
-                        _isLoading.value = false
-                        _errorMessage.value = result.message
-                    }
-                }
-            }
-        }
-    }
-    
-    /**
-     * Check if a trail is downloaded.
-     */
-    suspend fun isTrailDownloaded(trailId: String): Boolean {
-        return repository.isTrailDownloaded(trailId)
     }
     
     /**

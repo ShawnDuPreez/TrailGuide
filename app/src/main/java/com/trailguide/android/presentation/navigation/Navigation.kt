@@ -1,5 +1,6 @@
 package com.trailguide.android.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -7,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -19,9 +21,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.android.gms.maps.model.LatLng
 import com.trailguide.android.R
+import com.trailguide.android.data.model.RoutePoint
 import com.trailguide.android.presentation.screens.*
+import com.trailguide.android.presentation.screens.navigation.NavigationModeScreen
 import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
+import com.trailguide.android.services.NavigationServiceManager
 
 /**
  * Main navigation destinations for the app.
@@ -34,6 +40,9 @@ sealed class Screen(val route: String, val title: String) {
     }
     object Hiking : Screen("hiking/{trailId}", "Hiking") {
         fun createRoute(trailId: String) = "hiking/$trailId"
+    }
+    object NavigationMode : Screen("navigation/{trailId}/{trailName}", "Navigation") {
+        fun createRoute(trailId: String, trailName: String) = "navigation/$trailId/${Uri.encode(trailName)}"
     }
     object Map : Screen("map", "Map")
     object Favorites : Screen("favorites", "Favorites")
@@ -114,10 +123,21 @@ fun TrailGuideApp() {
                 arguments = listOf(navArgument("trailId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val trailId = backStackEntry.arguments?.getString("trailId") ?: ""
+                val context = LocalContext.current
                 TrailDetailsScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToMap = { navController.navigate(Screen.Map.route) },
-                    onStartHike = { navController.navigate(Screen.Hiking.createRoute(trailId)) }
+                    onStartHike = { trail ->
+                        val routePolyline = ArrayList(trail.routeCoordinates.toLatLngList())
+                        NavigationServiceManager.startNavigation(
+                            context = context,
+                            trailId = trail.id,
+                            trailName = trail.name,
+                            totalDistanceMeters = (trail.distanceKm ?: 0.0) * 1000,
+                            routePolyline = if (routePolyline.isEmpty()) null else routePolyline
+                        )
+                        navController.navigate(Screen.NavigationMode.createRoute(trail.id, trail.name))
+                    }
                 )
             }
             
@@ -129,6 +149,26 @@ fun TrailGuideApp() {
                 HikingScreenWithTrail(
                     trailId = trailId,
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = Screen.NavigationMode.route,
+                arguments = listOf(
+                    navArgument("trailId") { type = NavType.StringType },
+                    navArgument("trailName") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val trailId = backStackEntry.arguments?.getString("trailId") ?: ""
+                val trailName = backStackEntry.arguments?.getString("trailName")?.let { Uri.decode(it) } ?: "Trail"
+                val context = LocalContext.current
+                NavigationModeScreen(
+                    trailId = trailId,
+                    trailName = trailName,
+                    onBack = {
+                        NavigationServiceManager.stopNavigation(context)
+                        navController.popBackStack()
+                    }
                 )
             }
             
@@ -146,8 +186,10 @@ fun TrailGuideApp() {
             
             composable(Screen.Downloads.route) {
                 DownloadsScreen(
-                    onTrailClick = { trailId ->
-                        navController.navigate(Screen.TrailDetails.createRoute(trailId))
+                    onAreaClick = { areaId ->
+                        // Navigate to area details or map view
+                        // For now, just navigate to map
+                        navController.navigate(Screen.Map.route)
                     }
                 )
             }
@@ -198,6 +240,10 @@ data class BottomNavItem(
     val titleResId: Int, // Changed to resource ID
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
+
+private fun List<RoutePoint>.toLatLngList(): List<LatLng> {
+    return map { LatLng(it.latitude, it.longitude) }
+}
 
 /**
  * Hiking screen that fetches real trail data from the API.

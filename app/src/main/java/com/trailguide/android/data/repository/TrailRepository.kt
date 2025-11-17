@@ -14,6 +14,7 @@ import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.remote.safeApiCall
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.time.Instant
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -405,8 +407,8 @@ class TrailRepository @Inject constructor(
         }
         
         if (isFavorite) {
-            val ensured = ensureTrailExistsInSupabase(trail)
-            if (!ensured) {
+            val synced = syncTrailToSupabase(trail)
+            if (!synced) {
                 emit(NetworkResult.Error("Failed to sync trail to Supabase"))
                 return@flow
             }
@@ -437,30 +439,47 @@ class TrailRepository @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
     
-    private suspend fun ensureTrailExistsInSupabase(trail: Trail): Boolean {
-        Log.d(TAG, "Checking if trail ${trail.id} exists in Supabase...")
-        return when (val existing = safeApiCall { apiService.getTrailById(trail.id) }) {
+    private suspend fun syncTrailToSupabase(trail: Trail): Boolean {
+        Log.d(TAG, "Syncing trail ${trail.id} via Node API...")
+        return when (val createResult = safeApiCall { apiService.createTrail(trail.toCreateRequest()) }) {
             is NetworkResult.Success -> {
-                Log.d(TAG, "Trail ${trail.id} already exists in Supabase")
+                Log.d(TAG, "Trail ${trail.id} synced via Node API")
                 true
             }
             is NetworkResult.Error -> {
-                Log.d(TAG, "Trail ${trail.id} missing in Supabase. Creating placeholder record...")
-                Log.d(TAG, "Trail data: name=${trail.name}, lat=${trail.latitude}, lon=${trail.longitude}")
-                when (val createResult = safeApiCall { apiService.createTrail(trail.toCreateRequest()) }) {
-                    is NetworkResult.Success -> {
-                        Log.d(TAG, "Successfully created trail ${trail.id} in Supabase")
-                        true
-                    }
-                    is NetworkResult.Error -> {
-                        Log.e(TAG, "Failed to create trail in Supabase: ${createResult.message}")
-                        Log.e(TAG, "Exception: ${createResult.exception?.message}")
-                        false
-                    }
-                    else -> false
-                }
+                Log.e(TAG, "Node API sync failed: ${createResult.message}")
+                Log.e(TAG, "Falling back to direct Supabase upsert")
+                upsertTrailDirectly(trail)
             }
-            else -> true
+            else -> false
+        }
+    }
+
+    private suspend fun upsertTrailDirectly(trail: Trail): Boolean {
+        return try {
+            val payload = mapOf(
+                "id" to trail.id,
+                "name" to trail.name,
+                "city" to (trail.city ?: "Unknown"),
+                "lat" to trail.latitude,
+                "lon" to trail.longitude,
+                "distance_km" to (trail.distanceKm ?: 0.0),
+                "elevation_m" to (trail.elevationM ?: 0),
+                "difficulty" to (trail.difficulty?.name?.lowercase() ?: "moderate"),
+                "rating" to (trail.rating ?: 0.0),
+                "image" to trail.imageUrl,
+                "tags" to trail.tags,
+                "description" to trail.description,
+                "updated_at" to java.time.Instant.now().toString()
+            )
+            supabaseClient.postgrest["trails"].upsert(payload) {
+                select()
+            }
+            Log.d(TAG, "Trail ${trail.id} upserted directly to Supabase")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Direct Supabase upsert failed: ${e.message}", e)
+            false
         }
     }
     

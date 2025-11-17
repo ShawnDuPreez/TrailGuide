@@ -143,6 +143,22 @@ object AppModule {
     ): com.trailguide.android.data.local.TrailProgressDao {
         return database.trailProgressDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideNavigationSessionDao(
+        database: TrailDatabase
+    ): com.trailguide.android.data.local.NavigationSessionDao {
+        return database.navigationSessionDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideNavigationWaypointDao(
+        database: TrailDatabase
+    ): com.trailguide.android.data.local.NavigationWaypointDao {
+        return database.navigationWaypointDao()
+    }
     
     /**
      * Provides Trail Repository.
@@ -285,5 +301,31 @@ object AppModule {
             )
             .build()
             .create(com.trailguide.android.data.osm.OverpassApiService::class.java)
+    }
+    
+    /**
+     * Provides Nominatim API service for OSM boundary searches.
+     */
+    @Provides
+    @Singleton
+    fun provideNominatimApiService(json: Json): com.trailguide.android.data.osm.NominatimApiService {
+        return Retrofit.Builder()
+            .baseUrl(com.trailguide.android.data.osm.NominatimApiService.BASE_URL)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .client(
+                okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+                    .addInterceptor { chain ->
+                        // Nominatim requires User-Agent header
+                        val request = chain.request().newBuilder()
+                            .addHeader("User-Agent", "TrailGuide-Android/1.1.0")
+                            .build()
+                        chain.proceed(request)
+                    }
+                    .build()
+            )
+            .build()
+            .create(com.trailguide.android.data.osm.NominatimApiService::class.java)
     }
 }

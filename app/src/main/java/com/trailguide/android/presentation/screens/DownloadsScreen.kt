@@ -11,22 +11,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.trailguide.android.data.model.Trail
+import com.trailguide.android.data.repository.OfflineAreaMetadata
 import com.trailguide.android.presentation.theme.*
 import com.trailguide.android.presentation.viewmodel.DownloadsViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
 /**
- * Downloads screen showing offline trail packs.
- * Displays downloaded trails and allows managing offline content.
+ * Downloads screen showing offline area packs.
+ * Displays downloaded areas and allows managing offline content.
  */
 @Composable
 fun DownloadsScreen(
     viewModel: DownloadsViewModel = hiltViewModel(),
-    onTrailClick: (String) -> Unit = {}
+    onAreaClick: (String) -> Unit = {}
 ) {
-    val downloadedTrails by viewModel.downloadedTrails.collectAsState()
+    val offlineAreas by viewModel.offlineAreas.collectAsState()
     val storageUsedBytes by viewModel.storageUsedBytes.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
@@ -102,7 +102,7 @@ fun DownloadsScreen(
                     
                     OutlinedButton(
                         onClick = { showDeleteAllDialog = true },
-                        enabled = downloadedTrails.isNotEmpty() && !isLoading
+                        enabled = offlineAreas.isNotEmpty() && !isLoading
                     ) {
                         Icon(Icons.Default.DeleteForever, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
@@ -120,14 +120,14 @@ fun DownloadsScreen(
             }
         }
         
-        // Downloaded trails section
+        // Downloaded areas section
         Text(
-            "Offline Packs",
+            "Offline Areas",
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(vertical = 8.dp)
         )
         
-        if (downloadedTrails.isEmpty()) {
+        if (offlineAreas.isEmpty()) {
             // Empty state
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -149,26 +149,26 @@ fun DownloadsScreen(
                         tint = TextSecondary
                     )
                     Text(
-                        "No offline trails yet",
+                        "No offline areas yet",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        "Download trails for offline access",
+                        "Download areas from the map for offline access",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
                 }
             }
         } else {
-            // Downloaded trails list
+            // Downloaded areas list
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(downloadedTrails) { trail ->
-                    DownloadedTrailCard(
-                        trail = trail,
-                        onClick = { onTrailClick(trail.id) },
-                        onDelete = { viewModel.deleteDownload(trail.id, trail.name) }
+                items(offlineAreas) { area ->
+                    OfflineAreaCard(
+                        area = area,
+                        onClick = { onAreaClick(area.name) },
+                        onDelete = { viewModel.deleteOfflineArea(area.name) }
                     )
                 }
             }
@@ -180,11 +180,11 @@ fun DownloadsScreen(
         AlertDialog(
             onDismissRequest = { showDeleteAllDialog = false },
             title = { Text("Clear All Downloads?") },
-            text = { Text("This will remove all ${downloadedTrails.size} downloaded trails from your device. You can download them again later.") },
+            text = { Text("This will remove all ${offlineAreas.size} downloaded areas from your device. You can download them again later.") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteAllDownloads()
+                        viewModel.deleteAllOfflineAreas()
                         showDeleteAllDialog = false
                     }
                 ) {
@@ -201,16 +201,19 @@ fun DownloadsScreen(
 }
 
 /**
- * Card component for a downloaded trail.
+ * Card component for an offline area.
  */
 @Composable
-fun DownloadedTrailCard(
-    trail: Trail,
+fun OfflineAreaCard(
+    area: OfflineAreaMetadata,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
-    val downloadedDate = remember { "Downloaded" } // You can calculate relative time if needed
+    val downloadedDate = remember(area.downloadDate) { 
+        dateFormat.format(Date(area.downloadDate))
+    }
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
@@ -231,7 +234,7 @@ fun DownloadedTrailCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    Icons.Default.DownloadDone,
+                    Icons.Default.Map,
                     contentDescription = null,
                     tint = Primary,
                     modifier = Modifier.size(32.dp)
@@ -239,35 +242,15 @@ fun DownloadedTrailCard(
                 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        trail.name,
+                        area.name,
                         style = MaterialTheme.typography.titleSmall
                     )
                     
-                    // Route availability indicator
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (trail.routeCoordinates.isNotEmpty()) {
-                            Icon(
-                                Icons.Default.Route,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = Primary
-                            )
-                            Text(
-                                "Route available • ${trail.routeCoordinates.size} points",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Primary
-                            )
-                        } else {
-                            Text(
-                                "Marker only",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                    }
+                    Text(
+                        "${area.trailCount} trails • ${String.format("%.1f", area.totalDistanceKm)} km • ${String.format("%.0f", area.totalElevationM)} m",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Primary
+                    )
                     
                     Spacer(modifier = Modifier.height(4.dp))
                     
@@ -275,13 +258,7 @@ fun DownloadedTrailCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            "${trail.distanceKm} km",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextTertiary
-                        )
-                        Text("•", color = TextTertiary)
-                        Text(
-                            trail.difficulty?.displayName ?: "Moderate",
+                            formatFileSize(area.fileSize),
                             style = MaterialTheme.typography.labelSmall,
                             color = TextTertiary
                         )
@@ -303,6 +280,17 @@ fun DownloadedTrailCard(
                 )
             }
         }
+    }
+}
+
+/**
+ * Format file size for display
+ */
+private fun formatFileSize(bytes: Long): String {
+    return when {
+        bytes >= 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
+        bytes >= 1024 -> "${bytes / 1024} KB"
+        else -> "$bytes B"
     }
 }
 

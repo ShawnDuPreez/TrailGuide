@@ -103,6 +103,53 @@ interface OverpassApiService {
                 out geom;
             """.trimIndent()
         }
+        
+        /**
+         * Build query for hiking trails within a specific boundary (OSM relation/way)
+         * This is the KEY query for getting trails inside nature reserves
+         * 
+         * @param osmId OSM ID of the boundary (relation or way)
+         * @param osmType Type of OSM object ("relation" or "way")
+         * @return Overpass QL query string
+         */
+        fun buildBoundaryTrailsQuery(osmId: Long, osmType: String = "relation"): String {
+            // Convert OSM ID to area ID based on type
+            val areaId = when (osmType) {
+                "relation" -> osmId + 3600000000
+                "way" -> osmId + 2400000000
+                else -> osmId
+            }
+            
+            return """
+                [out:json][timeout:30];
+                area($areaId) -> .searchArea;
+                (
+                  way["highway"~"path|footway|track|bridleway"](area.searchArea);
+                  way["route"="hiking"](area.searchArea);
+                );
+                out geom;
+            """.trimIndent()
+        }
+        
+        /**
+         * Alternative boundary query using bounding box
+         * Fallback when area query fails
+         */
+        fun buildBBoxTrailsQuery(
+            south: Double, 
+            west: Double, 
+            north: Double, 
+            east: Double
+        ): String {
+            return """
+                [out:json][timeout:25];
+                (
+                  way["highway"~"path|footway|track|bridleway"]($south,$west,$north,$east);
+                  way["route"="hiking"]($south,$west,$north,$east);
+                );
+                out geom;
+            """.trimIndent()
+        }
     }
     
     /**

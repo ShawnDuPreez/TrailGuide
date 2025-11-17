@@ -124,6 +124,70 @@ enum class TrailType(val osmValue: String, val displayName: String) {
 }
 
 /**
+ * Nominatim search result
+ */
+@Serializable
+data class NominatimResult(
+    @SerialName("osm_type") val osmType: String, // "relation", "way", "node"
+    @SerialName("osm_id") val osmId: Long,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("lat") val lat: String,
+    @SerialName("lon") val lon: String,
+    @SerialName("geojson") val geoJson: GeoJsonGeometry? = null,
+    @SerialName("boundingbox") val boundingBox: List<String>? = null,
+    @SerialName("type") val type: String? = null,
+    @SerialName("class") val osmClass: String? = null
+)
+
+/**
+ * GeoJSON geometry from Nominatim
+ */
+@Serializable
+data class GeoJsonGeometry(
+    @SerialName("type") val type: String, // "Polygon", "MultiPolygon", "Point"
+    @SerialName("coordinates") val coordinates: kotlinx.serialization.json.JsonElement
+)
+
+/**
+ * Domain model for nature reserve/place boundary
+ */
+data class OsmBoundary(
+    val osmId: Long,
+    val osmType: String,
+    val name: String,
+    val centerLat: Double,
+    val centerLon: Double,
+    val polygon: List<LatLng>, // Outer boundary
+    val boundingBox: BoundingBox? = null
+) {
+    /**
+     * Convert OSM relation ID to Overpass area ID
+     * Formula: areaId = relationId + 3600000000
+     */
+    fun toAreaId(): Long = when (osmType) {
+        "relation" -> osmId + 3600000000
+        "way" -> osmId + 2400000000
+        else -> osmId
+    }
+    
+    /**
+     * Get center point
+     */
+    val center: LatLng
+        get() = LatLng(centerLat, centerLon)
+}
+
+/**
+ * Bounding box for a boundary
+ */
+data class BoundingBox(
+    val south: Double,
+    val north: Double,
+    val west: Double,
+    val east: Double
+)
+
+/**
  * Extension functions for converting OSM elements to domain models
  */
 

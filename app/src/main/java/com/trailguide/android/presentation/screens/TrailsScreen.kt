@@ -297,9 +297,9 @@ fun TrailCard(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        TrailStat(Icons.Default.Terrain, "${trail.distanceKm} km")
-                        TrailStat(Icons.Default.TrendingUp, "${trail.elevationM} m")
-                        TrailStat(Icons.Default.Star, trail.rating.toString())
+                        TrailStat(Icons.Default.Terrain, "${trail.distanceKm ?: "N/A"} km")
+                        TrailStat(Icons.Default.TrendingUp, "${trail.elevationM ?: "N/A"} m")
+                        TrailStat(Icons.Default.Star, "${trail.rating ?: "N/A"}")
                     }
                     
                     IconButton(

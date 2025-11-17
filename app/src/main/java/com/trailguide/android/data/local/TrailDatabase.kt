@@ -16,9 +16,11 @@ import androidx.room.TypeConverters
         ReviewEntity::class,
         CollectionEntity::class,
         FavoriteTrailEntity::class,
-        TrailProgressEntity::class
+        TrailProgressEntity::class,
+        NavigationSessionEntity::class,
+        NavigationWaypointEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -29,6 +31,8 @@ abstract class TrailDatabase : RoomDatabase() {
     abstract fun collectionDao(): CollectionDao
     abstract fun favoriteTrailDao(): FavoriteTrailDao
     abstract fun trailProgressDao(): TrailProgressDao
+    abstract fun navigationSessionDao(): NavigationSessionDao
+    abstract fun navigationWaypointDao(): NavigationWaypointDao
     
     companion object {
         @Volatile
