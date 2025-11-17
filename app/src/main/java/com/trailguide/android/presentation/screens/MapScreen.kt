@@ -157,18 +157,23 @@ fun MapScreen(
                 Marker(
                     state = MarkerState(position = LatLng(trail.latitude, trail.longitude)),
                     title = trail.name,
-                    snippet = "${trail.difficulty?.displayName ?: "Moderate"} • ${trail.distanceKm} km • Tap to load trail details",
+                    snippet = "${trail.difficulty?.displayName ?: "Moderate"} • ${trail.distanceKm} km",
                     onClick = {
                         selectedTrailId = if (isSelected) null else trail.id
-                        // When trail is clicked, search for its OSM geometry
+                        // When trail is clicked, try to load OSM geometry
+                        // This is optional - if it fails, user can still see trail info
                         if (!isSelected) {
-                            android.util.Log.d("MapScreen", "Trail clicked: ${trail.name}, searching for OSM data...")
+                            android.util.Log.d("MapScreen", "Trail clicked: ${trail.name}")
+                            // Try to load OSM data, but don't block on it
                             mapViewModel.searchOsmTrailByName(
                                 trailName = trail.name,
                                 latitude = trail.latitude,
                                 longitude = trail.longitude,
-                                radius = 5000 // 5km search radius
+                                radius = 3000 // Reduced to 3km for faster search
                             )
+                        } else {
+                            // Clear OSM trails when deselecting
+                            mapViewModel.clearOsmTrails()
                         }
                         true
                     }
@@ -243,13 +248,32 @@ fun MapScreen(
                     )
                 }
                 
-                // Error messages
+                // Error messages (optional - OSM is supplementary)
                 if (osmError != null) {
-                    Text(
-                        "OSM Error: $osmError",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Detailed trail map unavailable",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
                 if (googleError != null) {
                     Text(

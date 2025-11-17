@@ -178,8 +178,8 @@ class MapViewModel @Inject constructor(
             android.util.Log.d("MapViewModel", "Searching OSM for trail: '$trailName' near ($latitude, $longitude)")
             
             try {
-                // Add timeout for search
-                kotlinx.coroutines.withTimeout(20000) { // 20 second timeout
+                // Add timeout for search - OSM is supplementary so fail fast
+                kotlinx.coroutines.withTimeout(10000) { // 10 second timeout
                     osmTrailRepository.searchTrails(
                         searchQuery = trailName,
                         latitude = latitude,
@@ -215,12 +215,12 @@ class MapViewModel @Inject constructor(
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 _isLoadingOsmTrails.value = false
-                _osmError.value = "Search timed out. Trail may not exist in OpenStreetMap."
-                android.util.Log.e("MapViewModel", "OSM search timed out for '$trailName'")
+                _osmError.value = "timeout"
+                android.util.Log.w("MapViewModel", "OSM search timed out for '$trailName' (expected for trails not in OSM)")
             } catch (e: Exception) {
                 _isLoadingOsmTrails.value = false
-                _osmError.value = "Search failed: ${e.message}"
-                android.util.Log.e("MapViewModel", "OSM search error", e)
+                _osmError.value = "unavailable"
+                android.util.Log.w("MapViewModel", "OSM search failed for '$trailName': ${e.message}")
             }
         }
     }
@@ -254,6 +254,15 @@ class MapViewModel @Inject constructor(
     fun clearSelection() {
         _selectedGoogleTrail.value = null
         _selectedOsmTrail.value = null
+    }
+    
+    /**
+     * Clear all OSM trails from map
+     */
+    fun clearOsmTrails() {
+        _osmTrails.value = emptyList()
+        _selectedOsmTrail.value = null
+        _osmError.value = null
     }
     
     /**
