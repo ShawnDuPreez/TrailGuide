@@ -168,9 +168,10 @@ object AppModule {
     fun provideTrailRepository(
         apiService: TrailApiService,
         downloadedTrailDao: DownloadedTrailDao,
+        favoriteTrailDao: com.trailguide.android.data.local.FavoriteTrailDao,
         supabaseClient: SupabaseClient
     ): TrailRepository {
-        return TrailRepository(apiService, downloadedTrailDao, supabaseClient)
+        return TrailRepository(apiService, downloadedTrailDao, favoriteTrailDao, supabaseClient)
     }
     
     /**

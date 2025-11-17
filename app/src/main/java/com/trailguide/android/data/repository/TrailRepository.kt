@@ -37,6 +37,7 @@ import kotlin.random.Random
 class TrailRepository @Inject constructor(
     private val apiService: TrailApiService,
     private val downloadedTrailDao: com.trailguide.android.data.local.DownloadedTrailDao,
+    private val favoriteTrailDao: com.trailguide.android.data.local.FavoriteTrailDao,
     private val supabaseClient: SupabaseClient
 ) {
     
@@ -396,6 +397,8 @@ class TrailRepository @Inject constructor(
     
     /**
      * Toggle favorite status for a trail.
+     * POSTs directly to Supabase favourites table and saves to local Room DB.
+     * GET requests still go through Render API.
      */
     fun toggleFavorite(trail: Trail, isFavorite: Boolean): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
@@ -406,53 +409,83 @@ class TrailRepository @Inject constructor(
             return@flow
         }
         
-        if (isFavorite) {
-            val synced = syncTrailToSupabase(trail)
-            if (!synced) {
-                emit(NetworkResult.Error("Failed to sync trail to Supabase"))
-                return@flow
+        try {
+            if (isFavorite) {
+                // First, ensure trail exists in Supabase trails table
+                val synced = syncTrailToSupabase(trail)
+                if (!synced) {
+                    emit(NetworkResult.Error("Failed to sync trail to Supabase"))
+                    return@flow
+                }
+                
+                // POST directly to Supabase favourites table
+                val favoritePayload = mapOf(
+                    "user_id" to userId,
+                    "trail_id" to trail.id
+                )
+                
+                try {
+                    supabaseClient.postgrest["favourites"].insert(favoritePayload) {
+                        select()
+                    }
+                    Log.d(TAG, "Favorite added to Supabase: trail ${trail.id} for user $userId")
+                } catch (e: Exception) {
+                    // Check if it's a unique constraint violation (already favorited)
+                    if (e.message?.contains("23505") == true || e.message?.contains("duplicate") == true) {
+                        Log.d(TAG, "Trail already favorited in Supabase")
+                    } else {
+                        throw e
+                    }
+                }
+                
+                // Save to local Room DB for offline access
+                val favoriteEntity = com.trailguide.android.data.local.FavoriteTrailEntity(
+                    id = java.util.UUID.randomUUID().toString(),
+                    userId = userId,
+                    trailId = trail.id,
+                    trailName = trail.name,
+                    trailImageUrl = trail.imageUrl,
+                    location = trail.city,
+                    addedAt = System.currentTimeMillis(),
+                    syncStatus = com.trailguide.android.data.local.SyncStatus.SYNCED.name,
+                    lastSyncedAt = System.currentTimeMillis()
+                )
+                favoriteTrailDao.insertFavorite(favoriteEntity)
+                Log.d(TAG, "Favorite saved to local DB")
+                
+            } else {
+                // Remove from Supabase favourites table
+                try {
+                    supabaseClient.postgrest["favourites"].delete {
+                        filter {
+                            eq("user_id", userId)
+                            eq("trail_id", trail.id)
+                        }
+                    }
+                    Log.d(TAG, "Favorite removed from Supabase: trail ${trail.id} for user $userId")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error removing favorite from Supabase: ${e.message}")
+                    // Continue to remove from local DB even if Supabase fails
+                }
+                
+                // Remove from local Room DB
+                favoriteTrailDao.deleteFavoriteByUserAndTrail(userId, trail.id)
+                Log.d(TAG, "Favorite removed from local DB")
             }
-        }
-        
-        val result = if (isFavorite) {
-            // Add to favorites
-            safeApiCall {
-                apiService.addFavorite(userId, mapOf("trail_id" to trail.id))
-            }
-        } else {
-            // Remove from favorites
-            safeApiCall {
-                apiService.removeFavorite(userId, trail.id)
-            }
-        }
-        
-        when (result) {
-            is NetworkResult.Success -> {
-                emit(NetworkResult.Success(Unit))
-                Log.d(TAG, "Toggled favorite for trail ${trail.id}: $isFavorite")
-            }
-            is NetworkResult.Error -> {
-                emit(NetworkResult.Error(result.message, result.exception))
-                Log.e(TAG, "Error toggling favorite: ${result.message}")
-            }
-            is NetworkResult.Loading -> emit(NetworkResult.Loading)
+            
+            emit(NetworkResult.Success(Unit))
+            Log.d(TAG, "Successfully toggled favorite for trail ${trail.id}: $isFavorite")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error toggling favorite: ${e.message}", e)
+            emit(NetworkResult.Error("Failed to toggle favorite: ${e.message}", e))
         }
     }.flowOn(Dispatchers.IO)
     
     private suspend fun syncTrailToSupabase(trail: Trail): Boolean {
-        Log.d(TAG, "Syncing trail ${trail.id} via Node API...")
-        return when (val createResult = safeApiCall { apiService.createTrail(trail.toCreateRequest()) }) {
-            is NetworkResult.Success -> {
-                Log.d(TAG, "Trail ${trail.id} synced via Node API")
-                true
-            }
-            is NetworkResult.Error -> {
-                Log.e(TAG, "Node API sync failed: ${createResult.message}")
-                Log.e(TAG, "Falling back to direct Supabase upsert")
-                upsertTrailDirectly(trail)
-            }
-            else -> false
-        }
+        // Skip Node API, go directly to Supabase
+        Log.d(TAG, "Syncing trail ${trail.id} directly to Supabase...")
+        return upsertTrailDirectly(trail)
     }
 
     private suspend fun upsertTrailDirectly(trail: Trail): Boolean {
