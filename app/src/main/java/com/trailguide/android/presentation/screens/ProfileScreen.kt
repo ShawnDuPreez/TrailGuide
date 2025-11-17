@@ -124,7 +124,7 @@ fun ProfileScreen(
                     
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isSignedIn) currentUser?.email ?: "User" else "Guest",
+                            text = currentUser?.email ?: "User",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
@@ -134,31 +134,14 @@ fun ProfileScreen(
                         )
                     }
                     
-                    if (!isSignedIn) {
-                        Button(
-                            onClick = { viewModel.signInWithGoogle() }
-                        ) {
-                            Icon(Icons.Default.Login, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(R.string.sign_in_google))
-                        }
-                    } else {
-                        OutlinedButton(onClick = { viewModel.signOut() }) {
-                            Icon(Icons.Default.Logout, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(stringResource(R.string.sign_out))
-                        }
+                    // Single logout button
+                    OutlinedButton(onClick = { viewModel.signOut() }) {
+                        Icon(Icons.Default.Logout, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.sign_out))
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Info text about Supabase OAuth
-                Text(
-                    "Sign in with Google using Supabase Authentication",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
             }
         }
         

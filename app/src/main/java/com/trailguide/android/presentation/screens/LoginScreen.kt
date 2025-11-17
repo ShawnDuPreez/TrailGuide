@@ -34,8 +34,7 @@ import com.trailguide.android.presentation.viewmodel.AuthViewModel
 fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToRegister: () -> Unit,
-    onLoginSuccess: (com.trailguide.android.data.model.User) -> Unit,
-    onGuestLogin: () -> Unit
+    onLoginSuccess: (com.trailguide.android.data.model.User) -> Unit
 ) {
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
@@ -51,6 +50,7 @@ fun LoginScreen(
     // Check biometric availability
     val isBiometricAvailable = remember { viewModel.isBiometricAvailable() }
     val hasBiometricCredentials = remember { viewModel.hasBiometricCredentials() }
+    val hasBiometricForEmail by viewModel.hasBiometricForEmail.collectAsState()
     
     // Observe login success
     LaunchedEffect(authenticatedUser) {
@@ -94,7 +94,13 @@ fun LoginScreen(
         // Email field
         OutlinedTextField(
             value = email,
-            onValueChange = { viewModel.setEmail(it) },
+            onValueChange = { 
+                viewModel.setEmail(it)
+                // Check biometric availability for this email
+                if (it.isNotBlank()) {
+                    viewModel.checkBiometricForEmail(it)
+                }
+            },
             label = { Text("Email") },
             leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
             keyboardOptions = KeyboardOptions(
@@ -108,6 +114,15 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth(),
             enabled = !isLoading
         )
+        
+        // Check biometric when email changes
+        LaunchedEffect(email) {
+            if (email.isNotBlank()) {
+                viewModel.checkBiometricForEmail(email)
+            } else {
+                viewModel.checkBiometricForEmail("")
+            }
+        }
         
         Spacer(modifier = Modifier.height(16.dp))
         
@@ -197,20 +212,15 @@ fun LoginScreen(
             }
         }
         
-        // Biometric login button (show if biometric is available)
-        if (isBiometricAvailable) {
+        // Biometric login button (show if biometric is available and email has credentials)
+        if (isBiometricAvailable && email.isNotBlank() && hasBiometricForEmail) {
             Spacer(modifier = Modifier.height(12.dp))
             
             OutlinedButton(
                 onClick = { 
-                    if (hasBiometricCredentials) {
-                        // Authenticate with stored credentials
-                        if (context is FragmentActivity) {
-                            viewModel.loginWithBiometric(context)
-                        }
-                    } else {
-                        // Show dialog to set up biometric
-                        showBiometricDialog = true
+                    // Authenticate with stored credentials for this email
+                    if (context is FragmentActivity) {
+                        viewModel.loginWithBiometric(context, email)
                     }
                 },
                 modifier = Modifier
@@ -220,7 +230,27 @@ fun LoginScreen(
             ) {
                 Icon(Icons.Default.Fingerprint, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (hasBiometricCredentials) "Login with Biometric" else "Set up Biometric Login")
+                Text("Log in with biometrics")
+            }
+        }
+        
+        // Show setup button if biometric is available but no credentials for this email
+        if (isBiometricAvailable && !hasBiometricForEmail && email.isNotBlank() && password.isNotBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            OutlinedButton(
+                onClick = { 
+                    // Show dialog to set up biometric
+                    showBiometricDialog = true
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                enabled = !isLoading
+            ) {
+                Icon(Icons.Default.Fingerprint, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Set up Biometric Login")
             }
         }
         
@@ -266,17 +296,6 @@ fun LoginScreen(
             Text("Create Account")
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Continue as Guest button
-        TextButton(
-            onClick = onGuestLogin,
-            enabled = !isLoading
-        ) {
-            Icon(Icons.Default.Person, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Continue as Guest")
-        }
     }
     
     // Biometric Enablement Dialog

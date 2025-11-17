@@ -41,6 +41,9 @@ class AuthViewModel @Inject constructor(
     private val _authenticatedUser = MutableStateFlow<com.trailguide.android.data.model.User?>(null)
     val authenticatedUser: StateFlow<com.trailguide.android.data.model.User?> = _authenticatedUser.asStateFlow()
     
+    private val _hasBiometricForEmail = MutableStateFlow(false)
+    val hasBiometricForEmail: StateFlow<Boolean> = _hasBiometricForEmail.asStateFlow()
+    
     fun setName(value: String) {
         _name.value = value
         _errorMessage.value = null
@@ -134,14 +137,33 @@ class AuthViewModel @Inject constructor(
     }
     
     /**
+     * Check if biometric is available for the entered email.
+     */
+    fun checkBiometricForEmail(email: String) {
+        viewModelScope.launch {
+            if (email.isBlank()) {
+                _hasBiometricForEmail.value = false
+                return@launch
+            }
+            
+            try {
+                val hasBiometric = authRepository.hasBiometricForEmail(email.trim())
+                _hasBiometricForEmail.value = hasBiometric
+            } catch (e: Exception) {
+                _hasBiometricForEmail.value = false
+            }
+        }
+    }
+    
+    /**
      * Sign in using biometric authentication.
      */
-    fun loginWithBiometric(activity: FragmentActivity) {
+    fun loginWithBiometric(activity: FragmentActivity, email: String? = null) {
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
             
-            authRepository.signInWithBiometric(activity).collect { result ->
+            authRepository.signInWithBiometric(activity, email).collect { result ->
                 when (result) {
                     is com.trailguide.android.data.remote.NetworkResult.Loading -> {
                         _isLoading.value = true

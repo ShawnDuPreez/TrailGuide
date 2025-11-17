@@ -87,20 +87,6 @@ class AuthStateViewModel @Inject constructor(
     }
     
     /**
-     * Sign in as guest user (anonymous access).
-     */
-    fun signInAsGuest() {
-        val guestUser = User(
-            id = "guest_user",
-            email = "guest@trailguide.com",
-            displayName = "Guest User",
-            photoUrl = null,
-            provider = AuthProvider.ANONYMOUS
-        )
-        signIn(guestUser)
-    }
-    
-    /**
      * Sign out the user and clear authentication state.
      */
     fun signOut() {
@@ -109,32 +95,70 @@ class AuthStateViewModel @Inject constructor(
                 authRepository.signOut().collect { result ->
                     when (result) {
                         is com.trailguide.android.data.remote.NetworkResult.Success -> {
+                            // Immediately update state without delay
                             _isAuthenticated.value = false
                             _currentUser.value = null
                             _authError.value = null
+                            _isLoading.value = false
                             
                             // Clear user preferences
                             preferencesRepository.clearPreferences()
                         }
                         is com.trailguide.android.data.remote.NetworkResult.Error -> {
                             _authError.value = "Sign out failed: ${result.message}"
+                            _isLoading.value = false
                         }
                         is com.trailguide.android.data.remote.NetworkResult.Loading -> {
-                            // Loading state
+                            _isLoading.value = true
                         }
                     }
                 }
             } catch (e: Exception) {
                 _authError.value = "Sign out error: ${e.message}"
+                _isLoading.value = false
             }
         }
     }
     
     /**
-     * Refresh authentication state (useful after OAuth callbacks).
+     * Force sign out - immediately clears auth state without calling repository.
+     * Used when ProfileViewModel signs out to avoid double calls.
+     */
+    fun forceSignOut() {
+        viewModelScope.launch {
+            _isAuthenticated.value = false
+            _currentUser.value = null
+            _authError.value = null
+            _isLoading.value = false
+            preferencesRepository.clearPreferences()
+        }
+    }
+    
+    /**
+     * Refresh authentication state (useful after OAuth callbacks or sign out detection).
+     * This is a lightweight check that doesn't set loading state to avoid flashing.
      */
     fun refreshAuthState() {
-        checkAuthState()
+        viewModelScope.launch {
+            try {
+                val isSignedIn = authRepository.isSignedIn()
+                
+                if (isSignedIn && !_isAuthenticated.value) {
+                    // User signed in - do full check
+                    checkAuthState()
+                } else if (!isSignedIn && _isAuthenticated.value) {
+                    // User signed out - update state immediately without loading screen
+                    _isAuthenticated.value = false
+                    _currentUser.value = null
+                    _authError.value = null
+                    // Clear preferences in coroutine
+                    preferencesRepository.clearPreferences()
+                }
+                // If state matches, do nothing to avoid flashing
+            } catch (e: Exception) {
+                // Silently handle errors during refresh to avoid flashing
+            }
+        }
     }
     
     /**

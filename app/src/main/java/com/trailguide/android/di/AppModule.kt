@@ -143,6 +143,16 @@ object AppModule {
     ): com.trailguide.android.data.local.TrailProgressDao {
         return database.trailProgressDao()
     }
+    
+    /**
+     * Provides Biometric Settings DAO.
+     */
+    @Provides
+    fun provideBiometricSettingsDao(
+        database: TrailDatabase
+    ): com.trailguide.android.data.local.BiometricSettingsDao {
+        return database.biometricSettingsDao()
+    }
 
     @Provides
     @Singleton
@@ -175,6 +185,18 @@ object AppModule {
     }
     
     /**
+     * Provides Biometric Storage Service.
+     */
+    @Provides
+    @Singleton
+    fun provideBiometricStorageService(
+        @ApplicationContext context: Context,
+        biometricSettingsDao: com.trailguide.android.data.local.BiometricSettingsDao
+    ): com.trailguide.android.data.security.BiometricStorageService {
+        return com.trailguide.android.data.security.BiometricStorageService(context, biometricSettingsDao)
+    }
+    
+    /**
      * Provides Biometric Authentication Manager.
      */
     @Provides
@@ -192,9 +214,11 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         supabaseClient: SupabaseClient,
-        biometricAuthManager: BiometricAuthenticationManager
+        biometricAuthManager: BiometricAuthenticationManager,
+        biometricStorageService: com.trailguide.android.data.security.BiometricStorageService,
+        secureSessionStore: com.trailguide.android.data.datastore.SecureSessionStore
     ): AuthRepository {
-        return AuthRepository(supabaseClient, biometricAuthManager)
+        return AuthRepository(supabaseClient, biometricAuthManager, biometricStorageService, secureSessionStore)
     }
     
     /**

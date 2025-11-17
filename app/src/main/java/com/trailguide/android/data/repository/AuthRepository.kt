@@ -4,7 +4,9 @@ import android.util.Log
 import com.trailguide.android.data.model.AuthProvider
 import com.trailguide.android.data.model.User
 import com.trailguide.android.data.remote.NetworkResult
+import com.trailguide.android.data.datastore.SecureSessionStore
 import com.trailguide.android.data.security.BiometricAuthenticationManager
+import com.trailguide.android.data.security.BiometricStorageService
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.Google
@@ -27,7 +29,9 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepository @Inject constructor(
     private val supabaseClient: SupabaseClient,
-    private val biometricAuthManager: BiometricAuthenticationManager
+    private val biometricAuthManager: BiometricAuthenticationManager,
+    private val biometricStorageService: BiometricStorageService,
+    private val secureSessionStore: SecureSessionStore
 ) {
     
     companion object {
@@ -98,6 +102,13 @@ class AuthRepository @Inject constructor(
                     provider = AuthProvider.EMAIL
                 )
                 
+                // Persist session for biometric if enabled (check by email)
+                val normalizedEmail = email.trim().lowercase()
+                val userId = supabaseUser.id
+                if (biometricStorageService.isBiometricEnabled(normalizedEmail)) {
+                    persistSessionForBiometrics(normalizedEmail, userId)
+                }
+                
                 emit(NetworkResult.Success(user))
                 Log.d(TAG, "Successfully signed in with email: ${user.email}")
             } else {
@@ -106,11 +117,18 @@ class AuthRepository @Inject constructor(
             }
         } catch (e: Exception) {
             val errorMessage = when {
-                e.message?.contains("Invalid login credentials") == true -> 
+                e.message?.contains("Invalid login credentials", ignoreCase = true) == true ||
+                e.message?.contains("Invalid login", ignoreCase = true) == true ||
+                e is io.github.jan.supabase.exceptions.BadRequestRestException && 
+                    (e.message?.contains("Invalid", ignoreCase = true) == true ||
+                     e.message?.contains("credentials", ignoreCase = true) == true) -> 
                     "Invalid email or password. If you signed up with Google, use Google sign-in instead."
-                e.message?.contains("Email not confirmed") == true ->
+                e.message?.contains("Email not confirmed", ignoreCase = true) == true ||
+                e.message?.contains("not confirmed", ignoreCase = true) == true ->
                     "Please check your email and confirm your account first."
-                else -> "Sign-in failed: ${e.message}"
+                e.message?.contains("User not found", ignoreCase = true) == true ->
+                    "No account found with this email. Please sign up first."
+                else -> "Sign-in failed: ${e.message ?: "Unknown error"}"
             }
             emit(NetworkResult.Error(errorMessage, e))
             Log.e(TAG, "Email sign-in error", e)
@@ -183,22 +201,46 @@ class AuthRepository @Inject constructor(
     
     /**
      * Sign out the current user from Supabase.
+     * @param global If true, clears all data including biometric. If false, keeps session tokens for biometric login.
      */
-    suspend fun signOut(): Flow<NetworkResult<Unit>> = flow {
+    suspend fun signOut(global: Boolean = false): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
         try {
-            // Check if user is actually signed in before attempting sign out
             val currentUser = supabaseClient.auth.currentUserOrNull()
+            val userIdToPreserve = currentUser?.id
             
-            if (currentUser != null) {
-                Log.d(TAG, "Signing out user: ${currentUser.email}")
-                supabaseClient.auth.signOut()
+            if (global) {
+                // Global sign out: invalidate token on server, clear all biometric data
+                if (currentUser != null) {
+                    Log.d(TAG, "Signing out user globally: ${currentUser.email}")
+                    supabaseClient.auth.signOut()
+                }
+                
+                if (userIdToPreserve != null && currentUser != null) {
+                    val userEmail = currentUser.email?.trim()?.lowercase()
+                    if (userEmail != null) {
+                        // Clear all biometric data for this email
+                        biometricStorageService.clearAllUserData(userEmail)
+                        biometricAuthManager.clearStoredCredentials(userIdToPreserve)
+                        // Disable biometric authentication (only for global sign out)
+                        biometricStorageService.setBiometricEnabled(userEmail, false)
+                    }
+                }
+                
                 emit(NetworkResult.Success(Unit))
-                Log.d(TAG, "User signed out successfully")
+                Log.d(TAG, "User signed out globally")
             } else {
-                Log.w(TAG, "No user session found, clearing local state")
-                // No active session, but clear any local state
+                // Local sign out: clear Supabase session to trigger navigation back to login
+                // but keep biometric tokens so biometric login still works
+                if (currentUser != null) {
+                    Log.d(TAG, "Signing out locally (keeping biometric tokens)")
+                    supabaseClient.auth.signOut()
+                }
+                
+                // Don't clear biometric data - tokens remain for biometric login
+                // The refresh token stored in biometric storage remains valid and can be reused.
+                
                 emit(NetworkResult.Success(Unit))
             }
         } catch (e: Exception) {
@@ -266,7 +308,27 @@ class AuthRepository @Inject constructor(
      * Check if biometric credentials are stored for the current user.
      */
     fun hasBiometricCredentials(): Boolean {
-        return biometricAuthManager.hasStoredCredentials()
+        val userId = currentUser?.id ?: return false
+        return biometricAuthManager.hasStoredCredentials(userId)
+    }
+    
+    /**
+     * Check if biometric is enabled for a specific email (for login screen).
+     * Simplified - checks directly by email, no userId lookup needed.
+     */
+    suspend fun hasBiometricForEmail(email: String): Boolean {
+        if (!biometricAuthManager.canUseBiometric()) {
+            return false
+        }
+        
+        val normalizedEmail = email.trim().lowercase()
+        val hasCredentials = biometricStorageService.hasCredentialsForEmail(normalizedEmail)
+        if (!hasCredentials) {
+            return false
+        }
+        
+        // Check if biometric is enabled for this email
+        return biometricStorageService.isBiometricEnabled(normalizedEmail)
     }
     
     /**
@@ -285,13 +347,42 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
-            val success = biometricAuthManager.storeCredentialsWithBiometric(activity, email, password)
-            if (success) {
-                emit(NetworkResult.Success(Unit))
-                Log.d(TAG, "Biometric credentials stored successfully")
-            } else {
-                emit(NetworkResult.Error("Failed to store biometric credentials"))
+            val userId = currentUser?.id
+            if (userId == null) {
+                emit(NetworkResult.Error("User not authenticated"))
+                return@flow
             }
+            
+            val normalizedEmail = email.trim().lowercase()
+            
+            // Migrate old credentials if needed
+            biometricStorageService.migrateOldCredentials(normalizedEmail)
+            
+            // Store credentials using biometric manager (for password fallback)
+            // Note: Still need userId for Android Keystore key alias
+            val success = biometricAuthManager.storeCredentialsWithBiometric(activity, userId, email, password)
+            if (!success) {
+                emit(NetworkResult.Error("Failed to store biometric credentials"))
+                return@flow
+            }
+            
+            // Get refresh token from SecureSessionStore if available
+            val refreshToken = secureSessionStore.getRefreshToken()
+            
+            // Save to BiometricStorageService by email (simplified - no userId lookup needed)
+            biometricStorageService.saveCredentials(
+                email = normalizedEmail,
+                refreshToken = refreshToken,
+                sessionData = null, // Will be populated after login
+                password = password,
+                userId = userId
+            )
+            
+            // Enable biometric for this email (state persists across logouts)
+            biometricStorageService.setBiometricEnabled(normalizedEmail, true)
+            
+            emit(NetworkResult.Success(Unit))
+            Log.d(TAG, "Biometric credentials stored successfully for user $userId")
         } catch (e: Exception) {
             emit(NetworkResult.Error("Failed to store biometric credentials: ${e.message}", e))
             Log.e(TAG, "Error storing biometric credentials", e)
@@ -302,9 +393,13 @@ class AuthRepository @Inject constructor(
      * Sign in using biometric authentication.
      * This retrieves stored credentials and signs in with Supabase.
      * @param activity FragmentActivity needed for biometric prompt
+     * @param email Optional email for email-based lookup
      * @return Flow with User result
      */
-    suspend fun signInWithBiometric(activity: androidx.fragment.app.FragmentActivity): Flow<NetworkResult<User>> = flow {
+    suspend fun signInWithBiometric(
+        activity: androidx.fragment.app.FragmentActivity,
+        email: String? = null
+    ): Flow<NetworkResult<User>> = flow {
         emit(NetworkResult.Loading)
         
         try {
@@ -313,11 +408,40 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
+            // Get credentials by email (simplified - always use email)
+            val lookupEmail: String = if (email != null) {
+                email.trim().lowercase()
+            } else {
+                // If no email provided, try to get from current user
+                currentUser?.email?.trim()?.lowercase() ?: run {
+                    emit(NetworkResult.Error("No saved credentials found. Please sign in with your password."))
+                    return@flow
+                }
+            }
+            
+            val credentials = biometricStorageService.getCredentialsByEmail(lookupEmail)
+            if (credentials == null) {
+                emit(NetworkResult.Error("No saved credentials found. Please sign in with your password."))
+                return@flow
+            }
+            
+            // Get userId from credentials or current user
+            val resolvedUserId = credentials["userId"] ?: currentUser?.id ?: run {
+                emit(NetworkResult.Error("No user ID found. Please sign in with your password."))
+                return@flow
+            }
+            
             // Authenticate with biometric
+            val localizedReason = if (email != null) {
+                "Authenticate as $lookupEmail"
+            } else {
+                "Authenticate to access your account"
+            }
+            
             val authResult = biometricAuthManager.authenticateWithBiometric(
                 activity = activity,
                 title = "Sign in to TrailGuide",
-                subtitle = "Use your biometric to sign in"
+                subtitle = localizedReason
             )
             
             if (!authResult) {
@@ -325,44 +449,49 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
-            // Retrieve stored credentials
-            val credentials = biometricAuthManager.retrieveCredentialsWithBiometric(activity)
+            // Try refresh token first (if available)
+            // Note: Supabase Kotlin SDK doesn't have direct setSession method
+            // We'll skip refresh token for now and go straight to password fallback
+            // Refresh token can be used in future if Supabase SDK adds this capability
             
-            if (credentials == null) {
-                emit(NetworkResult.Error("No stored credentials found"))
-                return@flow
+            // Fallback to password
+            val password = credentials["password"]
+            if (!password.isNullOrEmpty()) {
+                // Retrieve password from biometric manager (encrypted)
+                val keystoreCredentials = biometricAuthManager.retrieveCredentialsWithBiometric(activity, resolvedUserId)
+                if (keystoreCredentials != null) {
+                    val (_, keystorePassword) = keystoreCredentials
+                    
+                    supabaseClient.auth.signInWith(Email) {
+                        this.email = lookupEmail
+                        this.password = keystorePassword
+                    }
+                    
+                    kotlinx.coroutines.delay(300)
+                    
+                    val supabaseUser = supabaseClient.auth.currentUserOrNull()
+                    if (supabaseUser != null) {
+                        val user = User(
+                            id = supabaseUser.id,
+                            email = supabaseUser.email ?: lookupEmail,
+                            displayName = supabaseUser.userMetadata?.get("full_name")?.jsonPrimitive?.content
+                                ?: supabaseUser.userMetadata?.get("display_name")?.jsonPrimitive?.content
+                                ?: lookupEmail.substringBefore("@"),
+                            photoUrl = supabaseUser.userMetadata?.get("avatar_url")?.jsonPrimitive?.content,
+                            provider = AuthProvider.BIOMETRIC
+                        )
+                        
+                        // Persist session after successful login (using email, not userId)
+                        persistSessionForBiometrics(lookupEmail, supabaseUser.id)
+                        
+                        emit(NetworkResult.Success(user))
+                        Log.d(TAG, "Successfully signed in with biometric (password fallback): ${user.email}")
+                        return@flow
+                    }
+                }
             }
             
-            val (email, password) = credentials
-            
-            // Sign in with retrieved credentials
-            supabaseClient.auth.signInWith(Email) {
-                this.email = email
-                this.password = password
-            }
-            
-            // Wait for session to be established
-            kotlinx.coroutines.delay(300)
-            
-            val supabaseUser = supabaseClient.auth.currentUserOrNull()
-            
-            if (supabaseUser != null) {
-                val user = User(
-                    id = supabaseUser.id,
-                    email = supabaseUser.email ?: email,
-                    displayName = supabaseUser.userMetadata?.get("full_name")?.jsonPrimitive?.content
-                        ?: supabaseUser.userMetadata?.get("display_name")?.jsonPrimitive?.content
-                        ?: email.substringBefore("@"),
-                    photoUrl = supabaseUser.userMetadata?.get("avatar_url")?.jsonPrimitive?.content,
-                    provider = AuthProvider.BIOMETRIC
-                )
-                
-                emit(NetworkResult.Success(user))
-                Log.d(TAG, "Successfully signed in with biometric: ${user.email}")
-            } else {
-                emit(NetworkResult.Error("Biometric sign-in succeeded but session not available"))
-                Log.e(TAG, "Supabase user is null after biometric sign-in")
-            }
+            emit(NetworkResult.Error("Session expired. Please enter your password to sign in."))
             
         } catch (e: Exception) {
             emit(NetworkResult.Error("Biometric sign-in failed: ${e.message}", e))
@@ -371,10 +500,62 @@ class AuthRepository @Inject constructor(
     }.flowOn(Dispatchers.IO)
     
     /**
-     * Clear stored biometric credentials.
+     * Persist session for biometric authentication after login/refresh.
+     * Uses email-based storage (simplified).
      */
-    fun clearBiometricCredentials() {
-        biometricAuthManager.clearStoredCredentials()
-        Log.d(TAG, "Biometric credentials cleared")
+    private suspend fun persistSessionForBiometrics(email: String, userId: String?) {
+        val currentUser = supabaseClient.auth.currentUserOrNull() ?: return
+        val resolvedUserId = userId ?: currentUser.id
+        val normalizedEmail = email.trim().lowercase()
+        
+        // Get refresh token from SecureSessionStore
+        val refreshToken = secureSessionStore.getRefreshToken()
+        
+        // Build session data JSON (simplified - just essential info)
+        val sessionData = try {
+            buildJsonObject {
+                put("user_id", resolvedUserId)
+                put("email", normalizedEmail)
+                if (refreshToken != null) {
+                    put("refresh_token", refreshToken)
+                }
+            }.toString()
+        } catch (e: Exception) {
+            null
+        }
+        
+        // Save credentials by email (simplified - no userId lookup needed)
+        biometricStorageService.saveCredentials(
+            email = normalizedEmail,
+            refreshToken = refreshToken,
+            sessionData = sessionData,
+            userId = resolvedUserId
+        )
+        // Note: Biometric enabled state persists - don't change it here
+    }
+    
+    /**
+     * Clear stored biometric credentials for current user.
+     */
+    suspend fun clearBiometricCredentials() {
+        val currentUser = currentUser
+        val userEmail = currentUser?.email?.trim()?.lowercase()
+        val userId = currentUser?.id
+        
+        if (userEmail != null && userId != null) {
+            biometricAuthManager.clearStoredCredentials(userId)
+            biometricStorageService.clearAllUserData(userEmail)
+            Log.d(TAG, "Biometric credentials cleared for email $userEmail")
+        }
+    }
+    
+    /**
+     * Clear biometric data for a specific email.
+     */
+    suspend fun clearBiometricData(email: String, userId: String) {
+        val normalizedEmail = email.trim().lowercase()
+        biometricAuthManager.clearStoredCredentials(userId)
+        biometricStorageService.clearAllUserData(normalizedEmail)
+        Log.d(TAG, "Biometric data cleared for email $normalizedEmail")
     }
 }

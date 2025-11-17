@@ -7,6 +7,7 @@ import com.trailguide.android.data.datastore.SecureSessionStore
 import com.trailguide.android.data.datastore.UserPreferences
 import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.data.security.BiometricAuthenticationManager
+import com.trailguide.android.data.security.BiometricStorageService
 import com.trailguide.android.data.sync.SyncScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -23,6 +24,7 @@ class SettingsViewModel @Inject constructor(
     private val secureSessionStore: SecureSessionStore,
     private val authRepository: AuthRepository,
     private val biometricAuthManager: BiometricAuthenticationManager,
+    private val biometricStorageService: BiometricStorageService,
     private val syncScheduler: SyncScheduler
 ) : ViewModel() {
     
@@ -33,11 +35,28 @@ class SettingsViewModel @Inject constructor(
     // Preferences flows
     val languageFlow = userPreferences.languageFlow
     val notificationsEnabledFlow = userPreferences.notificationsEnabledFlow
-    val biometricEnabledFlow = userPreferences.biometricEnabledFlow
     val weatherAlertsFlow = userPreferences.weatherAlertsFlow
     val friendActivityFlow = userPreferences.friendActivityFlow
     val newTrailsFlow = userPreferences.newTrailsFlow
     val themeModeFlow = userPreferences.themeModeFlow
+    
+    // Biometric enabled flow - based on email (persists across logouts)
+    val biometricEnabledFlow: StateFlow<Boolean> = flow {
+        while (true) {
+            val currentUser = authRepository.currentUser
+            val email = currentUser?.email?.trim()?.lowercase()
+            if (email != null) {
+                emit(biometricStorageService.isBiometricEnabled(email))
+            } else {
+                emit(false)
+            }
+            kotlinx.coroutines.delay(1000) // Check every second
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
     
     init {
         checkBiometricAvailability()
@@ -83,15 +102,25 @@ class SettingsViewModel @Inject constructor(
     
     /**
      * Toggle biometric authentication.
+     * Uses email-based storage (persists across logouts).
      */
     fun setBiometricEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            userPreferences.setBiometricEnabled(enabled)
-            secureSessionStore.setBiometricEnabled(enabled)
+            val currentUser = authRepository.currentUser
+            val email = currentUser?.email?.trim()?.lowercase()
             
-            if (!enabled) {
-                // Clear biometric credentials when disabled
-                authRepository.clearBiometricCredentials()
+            if (email != null) {
+                // Set biometric enabled state by email (persists across logouts)
+                biometricStorageService.setBiometricEnabled(email, enabled)
+                
+                // Also update UserPreferences for UI consistency
+                userPreferences.setBiometricEnabled(enabled)
+                secureSessionStore.setBiometricEnabled(enabled)
+                
+                if (!enabled) {
+                    // Clear biometric credentials when disabled
+                    authRepository.clearBiometricCredentials()
+                }
             }
         }
     }

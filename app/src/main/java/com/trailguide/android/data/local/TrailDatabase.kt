@@ -18,9 +18,10 @@ import androidx.room.TypeConverters
         FavoriteTrailEntity::class,
         TrailProgressEntity::class,
         NavigationSessionEntity::class,
-        NavigationWaypointEntity::class
+        NavigationWaypointEntity::class,
+        BiometricSettingsEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -33,6 +34,7 @@ abstract class TrailDatabase : RoomDatabase() {
     abstract fun trailProgressDao(): TrailProgressDao
     abstract fun navigationSessionDao(): NavigationSessionDao
     abstract fun navigationWaypointDao(): NavigationWaypointDao
+    abstract fun biometricSettingsDao(): BiometricSettingsDao
     
     companion object {
         @Volatile

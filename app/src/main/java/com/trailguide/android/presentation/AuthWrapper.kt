@@ -26,16 +26,27 @@ fun AuthWrapper(
     navController: NavHostController = rememberNavController(),
     authStateViewModel: AuthStateViewModel = hiltViewModel()
 ) {
-    // Refresh auth state when the app becomes active (useful for OAuth callbacks)
-    LaunchedEffect(Unit) {
-        // Small delay to allow OAuth callbacks to be processed
-        kotlinx.coroutines.delay(1000)
-        authStateViewModel.refreshAuthState()
-    }
     val isAuthenticated by authStateViewModel.isAuthenticated.collectAsState()
     val isLoading by authStateViewModel.isLoading.collectAsState()
     val currentUser by authStateViewModel.currentUser.collectAsState()
     val authError by authStateViewModel.authError.collectAsState()
+    
+    // Check auth state when authenticated state changes to detect sign out
+    // This will trigger when ProfileViewModel signs out
+    LaunchedEffect(isAuthenticated) {
+        if (isAuthenticated) {
+            // User is authenticated - check periodically if they signed out
+            // Use a single delayed check instead of a loop to avoid flashing
+            kotlinx.coroutines.delay(2000)
+            authStateViewModel.refreshAuthState()
+        }
+    }
+    
+    // Initial check on app start (for OAuth callbacks)
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(500)
+        authStateViewModel.refreshAuthState()
+    }
     
     when {
         isLoading -> {
@@ -72,9 +83,6 @@ fun AuthWrapper(
             AuthenticationFlow(
                 onAuthSuccess = { user ->
                     authStateViewModel.signIn(user)
-                },
-                onGuestLogin = {
-                    authStateViewModel.signInAsGuest()
                 }
             )
         }
@@ -100,8 +108,7 @@ fun AuthWrapper(
  */
 @Composable
 private fun AuthenticationFlow(
-    onAuthSuccess: (com.trailguide.android.data.model.User) -> Unit,
-    onGuestLogin: () -> Unit
+    onAuthSuccess: (com.trailguide.android.data.model.User) -> Unit
 ) {
     var isLoginScreen by remember { mutableStateOf(true) }
     
@@ -110,8 +117,7 @@ private fun AuthenticationFlow(
             onNavigateToRegister = { isLoginScreen = false },
             onLoginSuccess = { user ->
                 onAuthSuccess(user)
-            },
-            onGuestLogin = onGuestLogin
+            }
         )
     } else {
         RegisterScreen(

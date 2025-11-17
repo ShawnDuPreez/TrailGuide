@@ -118,12 +118,27 @@ class SecureSessionStore @Inject constructor(
      * Clear all stored session data.
      */
     fun clearSession() {
+        clearSession(keepTokens = false)
+    }
+    
+    /**
+     * Clear session data with option to keep tokens for biometric login.
+     * @param keepTokens If true, only clears user info, keeps access/refresh tokens
+     */
+    fun clearSession(keepTokens: Boolean) {
         encryptedPrefs.edit().apply {
-            remove(KEY_ACCESS_TOKEN)
-            remove(KEY_REFRESH_TOKEN)
-            remove(KEY_TOKEN_EXPIRY)
-            remove(KEY_USER_EMAIL)
-            remove(KEY_USER_ID)
+            if (keepTokens) {
+                // Only clear user info, keep tokens for biometric login
+                remove(KEY_USER_EMAIL)
+                remove(KEY_USER_ID)
+            } else {
+                // Clear everything
+                remove(KEY_ACCESS_TOKEN)
+                remove(KEY_REFRESH_TOKEN)
+                remove(KEY_TOKEN_EXPIRY)
+                remove(KEY_USER_EMAIL)
+                remove(KEY_USER_ID)
+            }
             apply()
         }
     }

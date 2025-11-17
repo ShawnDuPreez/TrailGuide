@@ -187,19 +187,28 @@ class ProfileViewModel @Inject constructor(
     
     /**
      * Sign out current user from Supabase.
+     * This clears the session and will trigger AuthWrapper to show login screen.
+     * Uses global=false to keep biometric tokens, but clears local session.
      */
     fun signOut() {
         viewModelScope.launch {
-            authRepository.signOut().collect { result ->
+            _isLoading.value = true
+            // Immediately clear local state to prevent flashing
+            _currentUser.value = null
+            _isSignedIn.value = false
+            
+            authRepository.signOut(global = false).collect { result ->
                 when (result) {
                     is NetworkResult.Loading -> {
                         _isLoading.value = true
                     }
                     is NetworkResult.Success -> {
-                        _currentUser.value = null
-                        _isSignedIn.value = false
                         _isLoading.value = false
                         _successMessage.value = "Signed out successfully!"
+                        // Clear preferences
+                        preferencesRepository.clearPreferences()
+                        // Note: AuthStateViewModel will be updated via checkAuthState() 
+                        // which is called when AuthWrapper refreshes
                     }
                     is NetworkResult.Error -> {
                         _isLoading.value = false
