@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TrailGuide</string>
+    <string name="trails_screen_title">Roetes</string>
+    <string name="map_screen_title">Kaart</string>
+    <string name="downloads_screen_title">Aflaaie</string>
+    <string name="profile_screen_title">Profiel</string>
+    <string name="search_hint">Soek roetes...</string>
+    <string name="filter_difficulty">Moeilikheid</string>
+    <string name="filter_distance">Afstand</string>
+    <string name="sign_in_google">Meld aan met Google</string>
+    <string name="sign_out">Meld af</string>
+    <string name="start_hike">Begin Staptog</string>
+    <string name="download_offline">Laai af vir vanlyn</string>
+    <string name="favorite">Gunsteling</string>
+    
+    <!-- Settings -->
+    <string name="settings">Instellings</string>
+    <string name="settings_general">Algemeen</string>
+    <string name="settings_language">Taal</string>
+    <string name="settings_notifications">Kennisgewings</string>
+    <string name="settings_security">Sekuriteit</string>
+    <string name="settings_biometric">Biometriese Aanmelding</string>
+    <string name="settings_biometric_description">Gebruik vingerafdruk of gesigherkenning</string>
+    <string name="settings_sync">Sinkroniseer</string>
+    <string name="settings_sync_now">Sinkroniseer nou</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_version">Weergawe</string>
+    <string name="settings_about">Oor</string>
+    
+    <!-- Language names -->
+    <string name="language_english">English</string>
+    <string name="language_afrikaans">Afrikaans</string>
+    <string name="language_zulu">isiZulu</string>
+    
+    <!-- Notifications -->
+    <string name="notification_weather_alert">Weer Waarskuwing</string>
+    <string name="notification_new_trail">Nuwe Roete</string>
+    <string name="notification_friend_review">Vriend Resensie</string>
+    <string name="notifications_enabled">Kennisgewings geaktiveer</string>
+    <string name="notifications_weather">Weer Waarskuwings</string>
+    <string name="notifications_new_trails">Nuwe Roetes</string>
+    <string name="notifications_friends">Vriend Aktiwiteit</string>
+    
+    <!-- Biometric -->
+    <string name="biometric_title">Verifieer Identiteit</string>
+    <string name="biometric_subtitle">Gebruik biometrie om aan te meld</string>
+    <string name="biometric_negative">Kanselleer</string>
+    <string name="biometric_enabled">Biometriese aanmelding geaktiveer</string>
+    <string name="biometric_disabled">Biometriese aanmelding gedeaktiveer</string>
+    
+    <!-- Trail Progress -->
+    <string name="trail_progress">Vordering</string>
+    <string name="trail_completed">Voltooi</string>
+    <string name="trail_in_progress">Besig</string>
+    
+    <!-- Sync -->
+    <string name="sync_in_progress">Besig om te sinkroniseer...</string>
+    <string name="sync_success">Sinkronisasie voltooi</string>
+    <string name="sync_failed">Sinkronisasie het misluk</string>
+    <string name="offline_mode">Vanlyn modus</string>
+    
+    <!-- Favorites -->
+    <string name="favorites">Gunstelinge</string>
+    <string name="add_to_favorites">Voeg by gunstelinge</string>
+    <string name="remove_from_favorites">Verwyder uit gunstelinge</string>
+</resources>
+

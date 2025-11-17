@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TrailGuide</string>
+    <string name="trails_screen_title">Izindlela</string>
+    <string name="map_screen_title">Ibalazwe</string>
+    <string name="downloads_screen_title">Okulayishwe</string>
+    <string name="profile_screen_title">Iphrofayela</string>
+    <string name="search_hint">Sesha izindlela...</string>
+    <string name="filter_difficulty">Ubunzima</string>
+    <string name="filter_distance">Ibanga</string>
+    <string name="sign_in_google">Ngena nge-Google</string>
+    <string name="sign_out">Phuma</string>
+    <string name="start_hike">Qala Ukuhamba</string>
+    <string name="download_offline">Layisha ngaphandle kwe-inthanethi</string>
+    <string name="favorite">Izintandokazi</string>
+    
+    <!-- Settings -->
+    <string name="settings">Izilungiselelo</string>
+    <string name="settings_general">Okuvamile</string>
+    <string name="settings_language">Ulimi</string>
+    <string name="settings_notifications">Izaziso</string>
+    <string name="settings_security">Ukuphepha</string>
+    <string name="settings_biometric">Ukungena Nge-Biometric</string>
+    <string name="settings_biometric_description">Sebenzisa izigxivizo zeminwe noma ukubonwa kobuso</string>
+    <string name="settings_sync">Vumelanisa</string>
+    <string name="settings_sync_now">Vumelanisa manje</string>
+    <string name="settings_theme">Itimu</string>
+    <string name="settings_version">Inguqulo</string>
+    <string name="settings_about">Mayelana</string>
+    
+    <!-- Language names -->
+    <string name="language_english">English</string>
+    <string name="language_afrikaans">Afrikaans</string>
+    <string name="language_zulu">isiZulu</string>
+    
+    <!-- Notifications -->
+    <string name="notification_weather_alert">Isexwayiso Sesimo Sezulu</string>
+    <string name="notification_new_trail">Indlela Entsha</string>
+    <string name="notification_friend_review">Ukubuyekezwa Komngane</string>
+    <string name="notifications_enabled">Izaziso zinikwe amandla</string>
+    <string name="notifications_weather">Izexwayiso Zesimo Sezulu</string>
+    <string name="notifications_new_trails">Izindlela Ezintsha</string>
+    <string name="notifications_friends">Umsebenzi Wabangane</string>
+    
+    <!-- Biometric -->
+    <string name="biometric_title">Qinisekisa Ubunikazi</string>
+    <string name="biometric_subtitle">Sebenzisa i-biometric ukungena</string>
+    <string name="biometric_negative">Khansela</string>
+    <string name="biometric_enabled">Ukungena nge-biometric kunikwe amandla</string>
+    <string name="biometric_disabled">Ukungena nge-biometric kukhubazekile</string>
+    
+    <!-- Trail Progress -->
+    <string name="trail_progress">Inqubekela Phambili</string>
+    <string name="trail_completed">Kuqediwe</string>
+    <string name="trail_in_progress">Kuyaqhubeka</string>
+    
+    <!-- Sync -->
+    <string name="sync_in_progress">Kuyavumelaniswa...</string>
+    <string name="sync_success">Ukuvumelanisa kuphumelele</string>
+    <string name="sync_failed">Ukuvumelanisa kuhlulekile</string>
+    <string name="offline_mode">Imodi yasele inthanethi</string>
+    
+    <!-- Favorites -->
+    <string name="favorites">Izintandokazi</string>
+    <string name="add_to_favorites">Engeza ezintandweni</string>
+    <string name="remove_from_favorites">Susa ezintandweni</string>
+</resources>
+

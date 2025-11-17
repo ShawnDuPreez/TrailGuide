@@ -19,7 +19,9 @@ data class ReviewEntity(
     val comment: String,
     val photos: List<String>,
     val createdAt: Long,
-    val likes: Int
+    val likes: Int,
+    val syncStatus: String = SyncStatus.PENDING.name,
+    val lastSyncedAt: Long = 0L
 )
 
 fun ReviewEntity.toDomainModel(): Review {

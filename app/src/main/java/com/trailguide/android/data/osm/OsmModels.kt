@@ -1,144 +1,189 @@
 package com.trailguide.android.data.osm
 
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
- * Data classes for OpenStreetMap (OSM) data structures.
- * Used for parsing Overpass API responses.
+ * OSM Overpass API Response Models
+ * Used for fetching real hiking trails from OpenStreetMap
  */
 
 /**
- * Root response from Overpass API
+ * Main response from Overpass API
  */
+@Serializable
 data class OverpassResponse(
-    val version: Double,
-    val generator: String,
-    val osm3s: Osm3s,
-    val elements: List<OsmElement>
+    @SerialName("version") val version: Double? = null,
+    @SerialName("generator") val generator: String? = null,
+    @SerialName("elements") val elements: List<OsmElement> = emptyList()
 )
 
 /**
- * OSM3S metadata
+ * OSM Element (node, way, or relation)
  */
-data class Osm3s(
-    val timestamp_osm_base: String,
-    val copyright: String
+@Serializable
+data class OsmElement(
+    @SerialName("type") val type: String, // "node", "way", or "relation"
+    @SerialName("id") val id: Long,
+    @SerialName("lat") val lat: Double? = null, // For nodes
+    @SerialName("lon") val lon: Double? = null, // For nodes
+    @SerialName("nodes") val nodes: List<Long>? = null, // For ways
+    @SerialName("geometry") val geometry: List<OsmGeometry>? = null, // Way geometry with coords
+    @SerialName("tags") val tags: Map<String, String>? = null
 )
 
 /**
- * Base OSM element (node, way, or relation)
+ * Geometry point (lat/lon pair)
  */
-sealed class OsmElement {
-    abstract val type: String
-    abstract val id: Long
-    abstract val tags: Map<String, String>?
+@Serializable
+data class OsmGeometry(
+    @SerialName("lat") val lat: Double,
+    @SerialName("lon") val lon: Double
+)
+
+/**
+ * Domain model for OSM hiking trail
+ * Converted from Overpass API response
+ */
+data class OsmTrail(
+    val id: Long,
+    val name: String,
+    val geometry: List<LatLng>, // Actual trail path
+    val tags: Map<String, String>,
+    val distance: Double, // Calculated in meters
+    val difficulty: TrailDifficulty,
+    val trailType: TrailType,
+    val surface: String?,
+    val description: String?
+) {
+    val startPoint: LatLng?
+        get() = geometry.firstOrNull()
+    
+    val endPoint: LatLng?
+        get() = geometry.lastOrNull()
+    
+    val midPoint: LatLng?
+        get() = if (geometry.isNotEmpty()) geometry[geometry.size / 2] else null
 }
 
 /**
- * OSM Node - represents a point with latitude and longitude
- */
-data class OsmNode(
-    override val type: String,
-    override val id: Long,
-    val lat: Double,
-    val lon: Double,
-    override val tags: Map<String, String>? = null
-) : OsmElement()
-
-/**
- * OSM Way - represents a path or area defined by a list of node references
- */
-data class OsmWay(
-    override val type: String,
-    override val id: Long,
-    val nodes: List<Long>,
-    val geometry: List<OsmNode>? = null,
-    override val tags: Map<String, String>? = null
-) : OsmElement()
-
-/**
- * OSM Relation - represents a collection of ways, nodes, or other relations
- */
-data class OsmRelation(
-    override val type: String,
-    override val id: Long,
-    val members: List<OsmMember>,
-    override val tags: Map<String, String>? = null
-) : OsmElement()
-
-/**
- * Member of an OSM relation
- */
-data class OsmMember(
-    val type: String,
-    val ref: Long,
-    val role: String,
-    val geometry: List<OsmNode>? = null
-)
-
-/**
- * Processed hiking trail data ready for display on map
- */
-data class HikingTrail(
-    val id: String,
-    val name: String?,
-    val coordinates: List<LatLng>,
-    val difficulty: TrailDifficulty?,
-    val surface: String?,
-    val description: String?
-)
-
-/**
- * Trail difficulty levels based on OSM tags
+ * Trail difficulty based on OSM tags
  */
 enum class TrailDifficulty {
     EASY,
     MODERATE,
-    HARD,
-    UNKNOWN
-}
-
-/**
- * Extension function to convert OsmNode to LatLng
- */
-fun OsmNode.toLatLng(): LatLng = LatLng(lat, lon)
-
-/**
- * Extension function to get trail name from OSM tags
- */
-fun Map<String, String>?.getTrailName(): String? {
-    return this?.let { tags ->
-        tags["name"] ?: tags["ref"] ?: tags["int_name"] ?: tags["loc_name"]
+    DIFFICULT,
+    EXPERT,
+    UNKNOWN;
+    
+    companion object {
+        fun fromOsmTags(tags: Map<String, String>): TrailDifficulty {
+            // Check various OSM difficulty tags
+            val sac = tags["sac_scale"] // SAC (Swiss Alpine Club) hiking scale
+            val trail = tags["trail_visibility"]
+            val surface = tags["surface"]
+            val incline = tags["incline"]
+            
+            return when {
+                sac == "hiking" || sac == "mountain_hiking" -> EASY
+                sac == "demanding_mountain_hiking" -> MODERATE
+                sac == "alpine_hiking" || sac == "demanding_alpine_hiking" -> DIFFICULT
+                sac == "difficult_alpine_hiking" -> EXPERT
+                trail == "excellent" || trail == "good" -> EASY
+                trail == "intermediate" -> MODERATE
+                trail == "bad" || trail == "horrible" -> DIFFICULT
+                surface == "paved" || surface == "asphalt" -> EASY
+                surface == "gravel" || surface == "compacted" -> MODERATE
+                surface == "dirt" || surface == "ground" -> MODERATE
+                surface == "rock" || surface == "boulder" -> DIFFICULT
+                incline?.contains("steep") == true -> DIFFICULT
+                else -> UNKNOWN
+            }
+        }
     }
 }
 
 /**
- * Extension function to determine trail difficulty from OSM tags
+ * Trail type based on OSM highway tag
  */
-fun Map<String, String>?.getTrailDifficulty(): TrailDifficulty {
-    return this?.let { tags ->
-        when {
-            tags["sac_scale"]?.contains("hiking", ignoreCase = true) == true -> TrailDifficulty.EASY
-            tags["sac_scale"]?.contains("mountain_hiking", ignoreCase = true) == true -> TrailDifficulty.MODERATE
-            tags["sac_scale"]?.contains("alpine_hiking", ignoreCase = true) == true -> TrailDifficulty.HARD
-            tags["difficulty"]?.contains("easy", ignoreCase = true) == true -> TrailDifficulty.EASY
-            tags["difficulty"]?.contains("moderate", ignoreCase = true) == true -> TrailDifficulty.MODERATE
-            tags["difficulty"]?.contains("hard", ignoreCase = true) == true -> TrailDifficulty.HARD
-            else -> TrailDifficulty.UNKNOWN
+enum class TrailType(val osmValue: String, val displayName: String) {
+    FOOTWAY("footway", "Footway"),
+    PATH("path", "Hiking Path"),
+    TRACK("track", "Track"),
+    BRIDLEWAY("bridleway", "Bridleway"),
+    CYCLEWAY("cycleway", "Cycleway"),
+    STEPS("steps", "Steps"),
+    UNKNOWN("", "Unknown");
+    
+    companion object {
+        fun fromOsmTag(highway: String?): TrailType {
+            return values().find { it.osmValue == highway } ?: UNKNOWN
         }
-    } ?: TrailDifficulty.UNKNOWN
+    }
 }
 
 /**
- * Extension function to get trail surface from OSM tags
+ * Extension functions for converting OSM elements to domain models
  */
-fun Map<String, String>?.getTrailSurface(): String? {
-    return this?.get("surface") ?: this?.get("tracktype")
+
+/**
+ * Convert OSM element to OsmTrail
+ */
+fun OsmElement.toOsmTrail(nodeMap: Map<Long, LatLng> = emptyMap()): OsmTrail? {
+    if (type != "way") return null
+    
+    val tags = this.tags ?: emptyMap()
+    val geometry = this.geometry?.map { LatLng(it.lat, it.lon) } ?: emptyList()
+    
+    if (geometry.isEmpty()) return null
+    
+    val name = tags["name"] 
+        ?: tags["ref"] 
+        ?: "Trail ${id}"
+    
+    val distance = calculateDistance(geometry)
+    val difficulty = TrailDifficulty.fromOsmTags(tags)
+    val trailType = TrailType.fromOsmTag(tags["highway"])
+    val surface = tags["surface"]
+    val description = tags["description"]
+    
+    return OsmTrail(
+        id = id,
+        name = name,
+        geometry = geometry,
+        tags = tags,
+        distance = distance,
+        difficulty = difficulty,
+        trailType = trailType,
+        surface = surface,
+        description = description
+    )
 }
 
 /**
- * Extension function to get trail description from OSM tags
+ * Calculate trail distance in meters using Haversine formula
  */
-fun Map<String, String>?.getTrailDescription(): String? {
-    return this?.get("description") ?: this?.get("note")
+private fun calculateDistance(points: List<LatLng>): Double {
+    if (points.size < 2) return 0.0
+    
+    var totalDistance = 0.0
+    for (i in 0 until points.size - 1) {
+        totalDistance += haversineDistance(points[i], points[i + 1])
+    }
+    return totalDistance
+}
+
+/**
+ * Calculate distance between two points using Haversine formula
+ */
+private fun haversineDistance(point1: LatLng, point2: LatLng): Double {
+    val R = 6371000.0 // Earth radius in meters
+    val dLat = Math.toRadians(point2.latitude - point1.latitude)
+    val dLon = Math.toRadians(point2.longitude - point1.longitude)
+    val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(Math.toRadians(point1.latitude)) * Math.cos(Math.toRadians(point2.latitude)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
 }

@@ -7,6 +7,8 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("kotlin-parcelize")
+    id("com.google.gms.google-services")
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 kotlin {
@@ -28,8 +30,8 @@ android {
         applicationId = "com.trailguide.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -42,6 +44,7 @@ android {
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties.getProperty("OPENWEATHER_API_KEY") ?: ""}\"")
         buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"${localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""}\"")
         buildConfigField("String", "OPENROUTE_API_KEY", "\"${localProperties.getProperty("OPENROUTE_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"${localProperties.getProperty("GOOGLE_TRANSLATE_API_KEY") ?: ""}\"")
         
         // Add Maps API key to manifest
         manifestPlaceholders["MAPS_API_KEY"] = localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
@@ -120,12 +123,18 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Kotlinx Serialization for Google APIs
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+    implementation("com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:1.0.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Hilt for Dependency Injection
     implementation("com.google.dagger:hilt-android:2.48")
     ksp("com.google.dagger:hilt-compiler:2.48")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
     // Supabase Authentication & Client
     implementation("io.github.jan-tennert.supabase:postgrest-kt:2.0.0")
@@ -155,6 +164,19 @@ dependencies {
 
     // Biometric authentication
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    
+    // Encrypted SharedPreferences for secure storage
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    
+    // WorkManager for background sync
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    
+    // Firebase Cloud Messaging (FCM) for push notifications
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    
+    // Splash Screen API
+    implementation("androidx.core:core-splashscreen:1.0.1")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -164,6 +186,10 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test:1.9.20")  // For kotlin.test assertions
+    testImplementation("org.robolectric:robolectric:4.11.1")
+    testImplementation("androidx.test:core-ktx:1.5.0")
+    testImplementation("androidx.test:runner:1.5.2")
+    testImplementation("androidx.room:room-testing:2.6.1")
     
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

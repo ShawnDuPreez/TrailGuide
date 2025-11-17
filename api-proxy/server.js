@@ -284,6 +284,67 @@ app.get('/api/trails/:id', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/trails
+ * Create or upsert a trail (used for syncing Google trails)
+ */
+app.post('/api/trails', async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      city,
+      latitude,
+      longitude,
+      distanceKm,
+      elevationM,
+      difficulty,
+      rating,
+      imageUrl,
+      tags,
+      description
+    } = req.body;
+    
+    if (!name || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({
+        error: 'Missing required fields (name, latitude, longitude)'
+      });
+    }
+    
+    const trailRecord = {
+      id: id || undefined,
+      name,
+      city: city || 'Unknown',
+      lat: latitude,
+      lon: longitude,
+      distance_km: distanceKm ?? 0,
+      elevation_m: elevationM ?? 0,
+      difficulty: (difficulty || 'moderate').toLowerCase(),
+      rating: rating ?? 0,
+      image: imageUrl,
+      tags: tags || [],
+      description: description || null,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from('trails')
+      .upsert([trailRecord], { onConflict: 'id' })
+      .select()
+      .single();
+    
+    if (error) throw error;
+    
+    res.status(201).json(data);
+  } catch (error) {
+    console.error('Error creating trail:', error);
+    res.status(500).json({
+      error: 'Failed to create trail',
+      message: error.message
+    });
+  }
+});
+
 // ============================================================================
 // Reviews & Photos Endpoints
 // ============================================================================

@@ -179,10 +179,6 @@ fun LoginScreen(
         Button(
             onClick = { 
                 viewModel.login()
-                // Show dialog to enable biometric after successful login
-                if (isBiometricAvailable && !hasBiometricCredentials) {
-                    showBiometricDialog = true
-                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -201,14 +197,20 @@ fun LoginScreen(
             }
         }
         
-        // Biometric login button (if available and credentials stored)
-        if (isBiometricAvailable && hasBiometricCredentials) {
-            Spacer(modifier = Modifier.height(16.dp))
+        // Biometric login button (show if biometric is available)
+        if (isBiometricAvailable) {
+            Spacer(modifier = Modifier.height(12.dp))
             
             OutlinedButton(
                 onClick = { 
-                    if (context is FragmentActivity) {
-                        viewModel.loginWithBiometric(context)
+                    if (hasBiometricCredentials) {
+                        // Authenticate with stored credentials
+                        if (context is FragmentActivity) {
+                            viewModel.loginWithBiometric(context)
+                        }
+                    } else {
+                        // Show dialog to set up biometric
+                        showBiometricDialog = true
                     }
                 },
                 modifier = Modifier
@@ -218,7 +220,7 @@ fun LoginScreen(
             ) {
                 Icon(Icons.Default.Fingerprint, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Login with Biometric")
+                Text(if (hasBiometricCredentials) "Login with Biometric" else "Set up Biometric Login")
             }
         }
         
@@ -281,30 +283,46 @@ fun LoginScreen(
     if (showBiometricDialog) {
         AlertDialog(
             onDismissRequest = { showBiometricDialog = false },
-            title = { Text("Enable Biometric Login") },
+            title = { Text("Set up Biometric Login") },
             text = { 
-                Text("Would you like to enable biometric login for faster access? Your credentials will be stored securely on this device.")
+                if (hasBiometricCredentials) {
+                    Text("Biometric login is already set up. You can use your fingerprint or face to sign in.")
+                } else if (email.isNotBlank() && password.isNotBlank()) {
+                    Text("Would you like to enable biometric login for faster access? Your credentials will be stored securely on this device using ${if (isBiometricAvailable) "fingerprint or face authentication" else "biometric authentication"}.")
+                } else {
+                    Text("To set up biometric login, please enter your email and password first, then sign in successfully. After that, you'll be able to enable biometric authentication.")
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        if (context is FragmentActivity) {
-                            viewModel.storeBiometricCredentials(context)
+                        if (email.isNotBlank() && password.isNotBlank() && !hasBiometricCredentials) {
+                            if (context is FragmentActivity) {
+                                viewModel.storeBiometricCredentials(context)
+                            }
                         }
                         showBiometricDialog = false
-                    }
+                    },
+                    enabled = email.isNotBlank() && password.isNotBlank() && !hasBiometricCredentials
                 ) {
-                    Text("Enable")
+                    Text(if (hasBiometricCredentials) "OK" else "Enable")
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showBiometricDialog = false }
                 ) {
-                    Text("Not Now")
+                    Text(if (email.isNotBlank() && password.isNotBlank() && !hasBiometricCredentials) "Not Now" else "Close")
                 }
             }
         )
+    }
+    
+    // Show biometric setup dialog after successful login
+    LaunchedEffect(authenticatedUser, isBiometricAvailable, hasBiometricCredentials) {
+        if (authenticatedUser != null && isBiometricAvailable && !hasBiometricCredentials && email.isNotBlank() && password.isNotBlank()) {
+            showBiometricDialog = true
+        }
     }
 }
 

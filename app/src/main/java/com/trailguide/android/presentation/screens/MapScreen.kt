@@ -79,7 +79,7 @@ fun MapScreen(
         }
     }
     
-    // Default location: Magaliesberg, South Africa
+    // Default location: Magaliesberg, South Africa (only used as fallback)
     val defaultLocation = LatLng(-25.792, 27.946)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 10f)
@@ -87,14 +87,22 @@ fun MapScreen(
     
     var mapType by remember { mutableStateOf(MapType.TERRAIN) }
     var selectedTrailId by remember { mutableStateOf<String?>(null) }
+    var hasLoadedInitialTrails by remember { mutableStateOf(false) }
     
-    // OSM Trail state from ViewModel
+    // State from hybrid MapViewModel
+    val googlePlacesTrails by mapViewModel.googlePlacesTrails.collectAsState()
     val osmTrails by mapViewModel.osmTrails.collectAsState()
+    val selectedGoogleTrail by mapViewModel.selectedGoogleTrail.collectAsState()
+    val selectedOsmTrail by mapViewModel.selectedOsmTrail.collectAsState()
+    val isLoadingGoogleTrails by mapViewModel.isLoadingGoogleTrails.collectAsState()
     val isLoadingOsmTrails by mapViewModel.isLoadingOsmTrails.collectAsState()
-    val osmTrailError by mapViewModel.osmTrailError.collectAsState()
+    val googleError by mapViewModel.googleError.collectAsState()
+    val osmError by mapViewModel.osmError.collectAsState()
     val showOsmTrails by mapViewModel.showOsmTrails.collectAsState()
-    val selectedTrail by mapViewModel.selectedTrail.collectAsState()
-    val availableTrails by mapViewModel.availableTrails.collectAsState()
+    val showGooglePlaces by mapViewModel.showGooglePlaces.collectAsState()
+    
+    // DO NOT automatically load trails on startup
+    // User must explicitly click "Refresh" or location button to load trails
     
     Box(modifier = Modifier.fillMaxSize()) {
         GoogleMap(
@@ -111,73 +119,60 @@ fun MapScreen(
                 mapToolbarEnabled = true
             )
         ) {
-            // OSM Hiking Trails
+            // OSM Hiking Trails (Real trail geometry)
             if (showOsmTrails) {
-                osmTrails.forEachIndexed { index, polylineOptions ->
+                osmTrails.forEach { osmTrail ->
+                    val isSelected = selectedOsmTrail?.id == osmTrail.id
                     Polyline(
-                        points = polylineOptions.points,
-                        color = Color(polylineOptions.color),
-                        width = polylineOptions.width,
+                        points = osmTrail.geometry,
+                        color = if (isSelected) Color(0xFFFF6B35) else Color(0xFF4CAF50),
+                        width = if (isSelected) 12f else 8f,
                         clickable = true,
-                        onClick = { polyline ->
-                            // Handle polyline click - show trail info
-                            android.util.Log.d("MapScreen", "Clicked OSM trail #$index")
-                            // You can show an info window or dialog here
+                        onClick = {
+                            mapViewModel.selectOsmTrail(osmTrail)
+                            android.util.Log.d("MapScreen", "Selected OSM trail: ${osmTrail.name}")
                             true
                         }
                     )
+                    
+                    // Start point marker for OSM trail
+                    osmTrail.startPoint?.let { start ->
+                        Marker(
+                            state = MarkerState(position = start),
+                            title = osmTrail.name,
+                            snippet = "${osmTrail.trailType.displayName} • ${String.format("%.2f", osmTrail.distance / 1000)} km",
+                            onClick = {
+                                mapViewModel.selectOsmTrail(osmTrail)
+                                true
+                            }
+                        )
+                    }
                 }
             }
-            
-            // Selected Trail (when user starts a hike)
-            selectedTrail?.let { trail ->
-                Polyline(
-                    points = trail.points,
-                    color = Color(trail.color),
-                    width = trail.width + 2f, // Make selected trail slightly thicker
-                    clickable = true,
-                    onClick = { polyline ->
-                        android.util.Log.d("MapScreen", "Clicked selected trail")
-                        true
-                    }
-                )
-            }
-            // Add markers and routes for all trails
+            // Add markers for trails from backend/Google Places
             trails.forEach { trail ->
                 val isSelected = selectedTrailId == trail.id
                 
-                // Marker for trail start point
+                // Only show START marker for the trail
                 Marker(
                     state = MarkerState(position = LatLng(trail.latitude, trail.longitude)),
                     title = trail.name,
-                    snippet = "${trail.difficulty.displayName} • ${trail.distanceKm} km",
+                    snippet = "${trail.difficulty?.displayName ?: "Moderate"} • ${trail.distanceKm} km • Tap to load trail details",
                     onClick = {
                         selectedTrailId = if (isSelected) null else trail.id
+                        // When trail is clicked, search for its OSM geometry
+                        if (!isSelected) {
+                            android.util.Log.d("MapScreen", "Trail clicked: ${trail.name}, searching for OSM data...")
+                            mapViewModel.searchOsmTrailByName(
+                                trailName = trail.name,
+                                latitude = trail.latitude,
+                                longitude = trail.longitude,
+                                radius = 5000 // 5km search radius
+                            )
+                        }
                         true
                     }
                 )
-                
-                // Draw route if available
-                if (trail.routeCoordinates.isNotEmpty()) {
-                    val routePoints = trail.routeCoordinates.map { 
-                        LatLng(it.latitude, it.longitude) 
-                    }
-                    
-                    Polyline(
-                        points = routePoints,
-                        color = when (trail.difficulty) {
-                            Difficulty.EASY -> Color(0xFF4CAF50) // Green
-                            Difficulty.MODERATE -> Color(0xFFFFA726) // Orange
-                            Difficulty.HARD -> Color(0xFFEF5350) // Red
-                        },
-                        width = if (isSelected) 12f else 8f,
-                        visible = true,
-                        clickable = true,
-                        onClick = {
-                            selectedTrailId = if (isSelected) null else trail.id
-                        }
-                    )
-                }
             }
         }
         
@@ -223,83 +218,85 @@ fun MapScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 
+                // Show loading indicator when fetching OSM geometry
                 if (isLoadingOsmTrails) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 8.dp)
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp
                         )
                         Text(
-                            "Loading...",
+                            "Loading trail geometry...",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                } else {
-                    TextButton(
-                        onClick = { mapViewModel.toggleOsmTrails() }
-                    ) {
-                        Icon(
-                            if (showOsmTrails) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            if (showOsmTrails) "Hide OSM" else "Show OSM",
-                            color = if (showOsmTrails) Primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                } else if (osmTrails.isEmpty()) {
+                    Text(
+                        "Tap a trail marker to load detailed route",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
                 }
                 
-                if (osmTrailError != null) {
+                // Error messages
+                if (osmError != null) {
                     Text(
-                        "Error: ${osmTrailError}",
+                        "OSM Error: $osmError",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                if (googleError != null) {
+                    Text(
+                        "Google Error: $googleError",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
                 
-                // Trail Selector
-                if (availableTrails.isNotEmpty()) {
+                // Selected OSM Trail Info
+                selectedOsmTrail?.let { trail ->
                     Divider(modifier = Modifier.padding(vertical = 4.dp))
                     
                     Text(
-                        "Start Hike",
-                        style = MaterialTheme.typography.labelMedium,
+                        trail.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "${trail.trailType.displayName} • ${trail.difficulty.name}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(
+                        "Distance: ${String.format("%.2f", trail.distance / 1000)} km",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     
-                    availableTrails.take(3).forEach { (trailId, trailName) ->
-                        TextButton(
-                            onClick = { 
-                                mapViewModel.selectTrail(trailId)
-                                selectedTrailId = trailId
-                            }
-                        ) {
-                            Text(
-                                trailName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (selectedTrailId == trailId) Primary else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Button(
+                        onClick = { 
+                            // TODO: Start navigation with this OSM trail
+                            android.util.Log.d("MapScreen", "Start navigation with ${trail.name}")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Start Navigation")
                     }
                     
-                    if (selectedTrailId != null) {
-                        TextButton(
-                            onClick = { 
-                                mapViewModel.clearSelectedTrail()
-                                selectedTrailId = null
-                            }
-                        ) {
-                            Text(
-                                "Clear Selection",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
+                    TextButton(
+                        onClick = { 
+                            mapViewModel.clearSelection()
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Clear Selection")
                     }
                 }
             }
@@ -325,7 +322,7 @@ fun MapScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "${trail.difficulty.displayName} • ${trail.distanceKm} km • ${trail.elevationM}m elevation",
+                            "${trail.difficulty?.displayName ?: "Moderate"} • ${trail.distanceKm} km • ${trail.elevationM}m elevation",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

@@ -208,7 +208,7 @@ fun TrailsScreen(
                 TrailCard(
                     trail = trail,
                     onClick = { onTrailClick(trail.id) },
-                    onFavoriteClick = { viewModel.toggleFavorite(trail.id, !trail.isFavorite) }
+                    onFavoriteClick = { viewModel.toggleFavorite(trail, !trail.isFavorite) }
                 )
             }
         }
@@ -267,7 +267,7 @@ fun TrailCard(
                         modifier = Modifier.weight(1f)
                     )
                     
-                    DifficultyBadge(difficulty = trail.difficulty)
+                    DifficultyBadge(difficulty = trail.difficulty ?: Difficulty.MODERATE)
                 }
                 
                 Row(
@@ -281,7 +281,7 @@ fun TrailCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = trail.city,
+                        text = trail.city ?: "Unknown",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )

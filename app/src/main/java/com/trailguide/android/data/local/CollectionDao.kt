@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CollectionDao {
     @Query("SELECT * FROM collections ORDER BY createdAt DESC")
-    fun getAllCollections(): Flow<List<CollectionEntity>>
+    fun getAllCollectionsFlow(): Flow<List<CollectionEntity>>
+    
+    @Query("SELECT * FROM collections ORDER BY createdAt DESC")
+    suspend fun getAllCollections(): List<CollectionEntity>
     
     @Query("SELECT * FROM collections WHERE id = :collectionId")
     fun getCollectionById(collectionId: String): Flow<CollectionEntity?>

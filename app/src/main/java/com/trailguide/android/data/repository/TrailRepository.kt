@@ -248,7 +248,7 @@ class TrailRepository @Inject constructor(
                         val route = generateCircularRoute(
                             centerLat = trail.latitude,
                             centerLon = trail.longitude,
-                            radiusKm = trail.distanceKm / 2.0, // Loop radius based on trail distance
+                            radiusKm = (trail.distanceKm ?: 5.0) / 2.0, // Loop radius based on trail distance
                             numPoints = 40
                         )
                         
@@ -329,19 +329,7 @@ class TrailRepository @Inject constructor(
     fun createTrail(trail: Trail): Flow<NetworkResult<Trail>> = flow {
         emit(NetworkResult.Loading)
         
-        val request = CreateTrailRequest(
-            name = trail.name,
-            city = trail.city,
-            latitude = trail.latitude,
-            longitude = trail.longitude,
-            distanceKm = trail.distanceKm,
-            elevationM = trail.elevationM,
-            difficulty = trail.difficulty.name.lowercase(),
-            rating = trail.rating,
-            imageUrl = trail.imageUrl,
-            tags = trail.tags,
-            description = trail.description
-        )
+        val request = trail.toCreateRequest()
         
         val result = safeApiCall { apiService.createTrail(request) }
         
@@ -365,19 +353,7 @@ class TrailRepository @Inject constructor(
     fun updateTrail(trail: Trail): Flow<NetworkResult<Trail>> = flow {
         emit(NetworkResult.Loading)
         
-        val request = CreateTrailRequest(
-            name = trail.name,
-            city = trail.city,
-            latitude = trail.latitude,
-            longitude = trail.longitude,
-            distanceKm = trail.distanceKm,
-            elevationM = trail.elevationM,
-            difficulty = trail.difficulty.name.lowercase(),
-            rating = trail.rating,
-            imageUrl = trail.imageUrl,
-            tags = trail.tags,
-            description = trail.description
-        )
+        val request = trail.toCreateRequest()
         
         val result = safeApiCall { apiService.updateTrail(trail.id, request) }
         
@@ -419,7 +395,7 @@ class TrailRepository @Inject constructor(
     /**
      * Toggle favorite status for a trail.
      */
-    fun toggleFavorite(trailId: String, isFavorite: Boolean): Flow<NetworkResult<Unit>> = flow {
+    fun toggleFavorite(trail: Trail, isFavorite: Boolean): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
         val userId = getCurrentUserId()
@@ -428,22 +404,30 @@ class TrailRepository @Inject constructor(
             return@flow
         }
         
+        if (isFavorite) {
+            val ensured = ensureTrailExistsInSupabase(trail)
+            if (!ensured) {
+                emit(NetworkResult.Error("Failed to sync trail to Supabase"))
+                return@flow
+            }
+        }
+        
         val result = if (isFavorite) {
             // Add to favorites
             safeApiCall {
-                apiService.addFavorite(userId, mapOf("trail_id" to trailId))
+                apiService.addFavorite(userId, mapOf("trail_id" to trail.id))
             }
         } else {
             // Remove from favorites
             safeApiCall {
-                apiService.removeFavorite(userId, trailId)
+                apiService.removeFavorite(userId, trail.id)
             }
         }
         
         when (result) {
             is NetworkResult.Success -> {
                 emit(NetworkResult.Success(Unit))
-                Log.d(TAG, "Toggled favorite for trail $trailId: $isFavorite")
+                Log.d(TAG, "Toggled favorite for trail ${trail.id}: $isFavorite")
             }
             is NetworkResult.Error -> {
                 emit(NetworkResult.Error(result.message, result.exception))
@@ -452,6 +436,33 @@ class TrailRepository @Inject constructor(
             is NetworkResult.Loading -> emit(NetworkResult.Loading)
         }
     }.flowOn(Dispatchers.IO)
+    
+    private suspend fun ensureTrailExistsInSupabase(trail: Trail): Boolean {
+        Log.d(TAG, "Checking if trail ${trail.id} exists in Supabase...")
+        return when (val existing = safeApiCall { apiService.getTrailById(trail.id) }) {
+            is NetworkResult.Success -> {
+                Log.d(TAG, "Trail ${trail.id} already exists in Supabase")
+                true
+            }
+            is NetworkResult.Error -> {
+                Log.d(TAG, "Trail ${trail.id} missing in Supabase. Creating placeholder record...")
+                Log.d(TAG, "Trail data: name=${trail.name}, lat=${trail.latitude}, lon=${trail.longitude}")
+                when (val createResult = safeApiCall { apiService.createTrail(trail.toCreateRequest()) }) {
+                    is NetworkResult.Success -> {
+                        Log.d(TAG, "Successfully created trail ${trail.id} in Supabase")
+                        true
+                    }
+                    is NetworkResult.Error -> {
+                        Log.e(TAG, "Failed to create trail in Supabase: ${createResult.message}")
+                        Log.e(TAG, "Exception: ${createResult.exception?.message}")
+                        false
+                    }
+                    else -> false
+                }
+            }
+            else -> true
+        }
+    }
     
     /**
      * Get user's favorite trails.
@@ -574,5 +585,22 @@ class TrailRepository @Inject constructor(
     suspend fun getDownloadCount(): Int {
         return downloadedTrailDao.getDownloadCount()
     }
+}
+
+private fun Trail.toCreateRequest(): CreateTrailRequest {
+    return CreateTrailRequest(
+        id = id,
+        name = name,
+        city = city ?: "Unknown",
+        latitude = latitude,
+        longitude = longitude,
+        distanceKm = distanceKm ?: 0.0,
+        elevationM = elevationM ?: 0,
+        difficulty = (difficulty ?: Difficulty.MODERATE).name.lowercase(),
+        rating = rating ?: 0.0,
+        imageUrl = imageUrl,
+        tags = tags.takeIf { it.isNotEmpty() },
+        description = description
+    )
 }
 

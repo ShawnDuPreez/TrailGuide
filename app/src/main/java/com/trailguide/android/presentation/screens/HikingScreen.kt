@@ -454,7 +454,7 @@ fun TrailProgress(
                         .fillMaxWidth()
                         .fillMaxHeight(animatedProgress)
                         .background(
-                            when (trail.difficulty) {
+                            when (trail.difficulty ?: Difficulty.MODERATE) {
                                 Difficulty.EASY -> Color(0xFF4CAF50)
                                 Difficulty.MODERATE -> Color(0xFFFFA726)
                                 Difficulty.HARD -> Color(0xFFEF5350)

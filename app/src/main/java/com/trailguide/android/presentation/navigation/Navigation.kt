@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -18,6 +19,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trailguide.android.R
 import com.trailguide.android.presentation.screens.*
 import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
 
@@ -25,7 +27,8 @@ import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
  * Main navigation destinations for the app.
  */
 sealed class Screen(val route: String, val title: String) {
-    object Trails : Screen("trails", "Trails")
+    object Trails : Screen("trails", "All Trails")
+    object MyTrails : Screen("my_trails", "My Trails")
     object TrailDetails : Screen("trail/{trailId}", "Trail Details") {
         fun createRoute(trailId: String) = "trail/$trailId"
     }
@@ -63,9 +66,10 @@ fun TrailGuideApp() {
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
                 bottomNavItems.forEach { item ->
+                    val itemTitle = stringResource(item.titleResId)
                     NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title) },
+                        icon = { Icon(item.icon, contentDescription = itemTitle) },
+                        label = { Text(itemTitle) },
                         selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true,
                         onClick = {
                             navController.navigate(item.screen.route) {
@@ -91,6 +95,14 @@ fun TrailGuideApp() {
         ) {
             composable(Screen.Trails.route) {
                 TrailsScreen(
+                    onTrailClick = { trailId ->
+                        navController.navigate(Screen.TrailDetails.createRoute(trailId))
+                    }
+                )
+            }
+            
+            composable(Screen.MyTrails.route) {
+                MyTrailsScreen(
                     onTrailClick = { trailId ->
                         navController.navigate(Screen.TrailDetails.createRoute(trailId))
                     }
@@ -153,27 +165,27 @@ fun TrailGuideApp() {
 val bottomNavItems = listOf(
     BottomNavItem(
         Screen.Trails,
-        "Trails",
+        R.string.trails_screen_title,
         Icons.Filled.Hiking
     ),
     BottomNavItem(
-        Screen.Favorites,
-        "Favorites",
-        Icons.Filled.Favorite
+        Screen.MyTrails,
+        R.string.trails_screen_title, // Reusing for now
+        Icons.Filled.AccountCircle
     ),
     BottomNavItem(
         Screen.Map,
-        "Map",
+        R.string.map_screen_title,
         Icons.Filled.Map
     ),
     BottomNavItem(
-        Screen.Downloads,
-        "Downloads",
-        Icons.Filled.Download
+        Screen.Favorites,
+        R.string.favorite,
+        Icons.Filled.Favorite
     ),
     BottomNavItem(
         Screen.Profile,
-        "Profile",
+        R.string.profile_screen_title,
         Icons.Filled.Person
     )
 )
@@ -183,7 +195,7 @@ val bottomNavItems = listOf(
  */
 data class BottomNavItem(
     val screen: Screen,
-    val title: String,
+    val titleResId: Int, // Changed to resource ID
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
 

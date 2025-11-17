@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.trailguide.android.data.model.Trail
 import com.trailguide.android.data.model.WeatherForecast
 import com.trailguide.android.data.remote.NetworkResult
+import com.trailguide.android.data.repository.GoogleTrailRepository
 import com.trailguide.android.data.repository.TrailRepository
 import com.trailguide.android.data.repository.WeatherRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class TrailDetailsViewModel @Inject constructor(
     private val trailRepository: TrailRepository,
+    private val googleTrailRepository: GoogleTrailRepository,
     private val weatherRepository: WeatherRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -89,25 +91,58 @@ class TrailDetailsViewModel @Inject constructor(
      */
     private fun loadTrailDetails() {
         viewModelScope.launch {
-            trailRepository.getTrailById(trailId).collect { result ->
-                when (result) {
-                    is NetworkResult.Loading -> {
-                        _isLoading.value = true
-                        _errorMessage.value = null
-                    }
-                    is NetworkResult.Success -> {
-                        _trail.value = result.data
-                        _isFavorite.value = result.data.isFavorite
-                        _isLoading.value = false
-                        _errorMessage.value = null
-                        
-                        // Load weather for trail location
-                        loadWeather(result.data.latitude, result.data.longitude)
-                    }
-                    is NetworkResult.Error -> {
-                        _isLoading.value = false
-                        _errorMessage.value = result.message
-                    }
+            val handledByGoogle = tryLoadGoogleTrail()
+            if (!handledByGoogle) {
+                loadTrailFromApi()
+            }
+        }
+    }
+    
+    private suspend fun tryLoadGoogleTrail(): Boolean {
+        var handled = false
+        googleTrailRepository.getCompleteTrailDetails(trailId).collect { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    _isLoading.value = true
+                    _errorMessage.value = null
+                }
+                is NetworkResult.Success -> {
+                    val trail = result.data
+                    _trail.value = trail
+                    _isFavorite.value = trail.isFavorite
+                    _isLoading.value = false
+                    _errorMessage.value = null
+                    handled = true
+                    
+                    loadWeather(trail.latitude, trail.longitude)
+                }
+                is NetworkResult.Error -> {
+                    handled = false
+                }
+            }
+        }
+        return handled
+    }
+    
+    private suspend fun loadTrailFromApi() {
+        trailRepository.getTrailById(trailId).collect { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    _isLoading.value = true
+                    _errorMessage.value = null
+                }
+                is NetworkResult.Success -> {
+                    _trail.value = result.data
+                    _isFavorite.value = result.data.isFavorite
+                    _isLoading.value = false
+                    _errorMessage.value = null
+                    
+                    // Load weather for trail location
+                    loadWeather(result.data.latitude, result.data.longitude)
+                }
+                is NetworkResult.Error -> {
+                    _isLoading.value = false
+                    _errorMessage.value = result.message
                 }
             }
         }
@@ -121,7 +156,7 @@ class TrailDetailsViewModel @Inject constructor(
         val newFavoriteStatus = !_isFavorite.value
         
         viewModelScope.launch {
-            trailRepository.toggleFavorite(currentTrail.id, newFavoriteStatus).collect { result ->
+            trailRepository.toggleFavorite(currentTrail, newFavoriteStatus).collect { result ->
                 when (result) {
                     is NetworkResult.Success -> {
                         _isFavorite.value = newFavoriteStatus

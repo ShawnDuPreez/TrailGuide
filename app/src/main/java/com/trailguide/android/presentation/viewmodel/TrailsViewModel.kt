@@ -2,11 +2,14 @@ package com.trailguide.android.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.trailguide.android.data.google.GooglePlacesApiService
 import com.trailguide.android.data.model.Difficulty
 import com.trailguide.android.data.model.Trail
 import com.trailguide.android.data.remote.NetworkResult
+import com.trailguide.android.data.repository.GoogleTrailRepository
 import com.trailguide.android.data.repository.TrailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -14,11 +17,24 @@ import javax.inject.Inject
 /**
  * ViewModel for the Trails List screen.
  * Manages trail data, search filters, and UI state using StateFlow.
+ * Now supports both backend API and Google Places API for trail discovery.
  */
 @HiltViewModel
 class TrailsViewModel @Inject constructor(
-    private val trailRepository: TrailRepository
+    private val trailRepository: TrailRepository,
+    private val googleTrailRepository: GoogleTrailRepository
 ) : ViewModel() {
+    
+    companion object {
+        private const val DEFAULT_RADIUS_KM = 20.0
+        private val DEFAULT_LOCATION = Pair(-25.7479, 28.2293) // Pretoria CBD
+    }
+    
+    // Toggle between backend API and Google Places
+    private val _useGooglePlaces = MutableStateFlow(true)
+    val useGooglePlaces: StateFlow<Boolean> = _useGooglePlaces.asStateFlow()
+    
+    private var currentLoadJob: Job? = null
     
     // Search and filter states
     private val _searchQuery = MutableStateFlow("")
@@ -27,7 +43,7 @@ class TrailsViewModel @Inject constructor(
     private val _selectedDifficulty = MutableStateFlow<Difficulty?>(null)
     val selectedDifficulty: StateFlow<Difficulty?> = _selectedDifficulty.asStateFlow()
     
-    private val _maxDistance = MutableStateFlow(20.0)
+    private val _maxDistance = MutableStateFlow(DEFAULT_RADIUS_KM)
     val maxDistance: StateFlow<Double> = _maxDistance.asStateFlow()
     
     // Advanced filters
@@ -71,11 +87,11 @@ class TrailsViewModel @Inject constructor(
         trails.filter { trail ->
             val matchesQuery = query.isBlank() || 
                 trail.name.contains(query, ignoreCase = true) ||
-                trail.city.contains(query, ignoreCase = true)
+                (trail.city?.contains(query, ignoreCase = true) == true)
             
             val matchesDifficulty = difficulty == null || trail.difficulty == difficulty
             
-            val matchesDistance = trail.distanceKm <= distance
+            val matchesDistance = (trail.distanceKm ?: 0.0) <= distance
             
             // Proximity filter (distance from user location)
             val matchesProximity = if (proximity != null && userLoc != null) {
@@ -97,7 +113,7 @@ class TrailsViewModel @Inject constructor(
             }
             
             matchesQuery && matchesDifficulty && matchesDistance && matchesProximity && matchesDuration
-        }.sortedBy { it.difficulty.order }
+        }.sortedBy { it.difficulty?.order ?: 2 }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -123,36 +139,80 @@ class TrailsViewModel @Inject constructor(
      * Uses Naismith's rule: 1 hour per 5km + 1 hour per 600m elevation gain
      */
     private fun estimateHikingDuration(trail: Trail): Double {
-        val distanceHours = trail.distanceKm / 5.0
-        val elevationHours = trail.elevationM / 600.0
+        val distanceHours = (trail.distanceKm ?: 0.0) / 5.0
+        val elevationHours = (trail.elevationM ?: 0) / 600.0
         return distanceHours + elevationHours
     }
     
     init {
-        loadTrails()
+        refresh()
     }
     
     /**
      * Load all trails from the repository.
      */
-    fun loadTrails() {
-        viewModelScope.launch {
-            trailRepository.getAllTrails().collect { result ->
-                when (result) {
-                    is NetworkResult.Loading -> {
-                        _isLoading.value = true
-                        _errorMessage.value = null
-                    }
-                    is NetworkResult.Success -> {
-                        _trails.value = result.data
-                        _isLoading.value = false
-                        _errorMessage.value = null
-                    }
-                    is NetworkResult.Error -> {
-                        _isLoading.value = false
-                        _errorMessage.value = result.message
-                    }
+    private suspend fun loadTrailsFromApi() {
+        trailRepository.getAllTrails().collect { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    _isLoading.value = true
+                    _errorMessage.value = null
                 }
+                is NetworkResult.Success -> {
+                    _trails.value = result.data
+                    _isLoading.value = false
+                    _errorMessage.value = null
+                }
+                is NetworkResult.Error -> {
+                    _isLoading.value = false
+                    _errorMessage.value = result.message
+                }
+            }
+        }
+    }
+    
+    private suspend fun loadTrailsFromGoogle() {
+        val (lat, lon) = _userLocation.value ?: DEFAULT_LOCATION
+        val radiusMeters = (_maxDistance.value * 1000).toInt().coerceIn(1000, 50000)
+        val query = if (_searchQuery.value.isBlank()) {
+            GooglePlacesApiService.HIKING_QUERIES.first()
+        } else {
+            _searchQuery.value
+        }
+        
+        googleTrailRepository.searchHikingTrails(
+            latitude = lat,
+            longitude = lon,
+            radius = radiusMeters,
+            query = query
+        ).collect { result ->
+            when (result) {
+                is NetworkResult.Loading -> {
+                    _isLoading.value = true
+                    _errorMessage.value = null
+                }
+                is NetworkResult.Success -> {
+                    _trails.value = result.data
+                    _isLoading.value = false
+                    _errorMessage.value = if (result.data.isEmpty()) {
+                        "No hiking trails found near this location."
+                    } else null
+                }
+                is NetworkResult.Error -> {
+                    _isLoading.value = false
+                    _errorMessage.value = result.message ?: "Failed to fetch Google trails."
+                }
+            }
+        }
+    }
+    
+    private fun loadTrails(useGoogle: Boolean) {
+        currentLoadJob?.cancel()
+        currentLoadJob = viewModelScope.launch {
+            if (useGoogle) {
+                loadTrailsFromGoogle()
+            } else {
+                loadTrailsFromApi()
             }
         }
     }
@@ -162,6 +222,9 @@ class TrailsViewModel @Inject constructor(
      */
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+        if (_useGooglePlaces.value) {
+            refresh()
+        }
     }
     
     /**
@@ -169,6 +232,7 @@ class TrailsViewModel @Inject constructor(
      */
     fun setDifficulty(difficulty: Difficulty?) {
         _selectedDifficulty.value = difficulty
+        // Difficulty filter is client-side, no fetch required
     }
     
     /**
@@ -176,6 +240,9 @@ class TrailsViewModel @Inject constructor(
      */
     fun setMaxDistance(distance: Double) {
         _maxDistance.value = distance
+        if (_useGooglePlaces.value) {
+            refresh()
+        }
     }
     
     /**
@@ -183,6 +250,9 @@ class TrailsViewModel @Inject constructor(
      */
     fun setUserLocation(latitude: Double, longitude: Double) {
         _userLocation.value = Pair(latitude, longitude)
+        if (_useGooglePlaces.value) {
+            refresh()
+        }
     }
     
     /**
@@ -190,6 +260,7 @@ class TrailsViewModel @Inject constructor(
      */
     fun setMaxProximity(proximityKm: Double?) {
         _maxProximity.value = proximityKm
+        // Only local filtering, no fetch required
     }
     
     /**
@@ -197,6 +268,7 @@ class TrailsViewModel @Inject constructor(
      */
     fun setMaxDuration(durationHours: Double?) {
         _maxDuration.value = durationHours
+        // Local filtering only
     }
     
     /**
@@ -205,25 +277,35 @@ class TrailsViewModel @Inject constructor(
     fun clearFilters() {
         _searchQuery.value = ""
         _selectedDifficulty.value = null
-        _maxDistance.value = 20.0
+        _maxDistance.value = DEFAULT_RADIUS_KM
         _maxProximity.value = null
         _maxDuration.value = null
+        
+        if (_useGooglePlaces.value) {
+            refresh()
+        }
+    }
+    
+    fun useGoogleTrails(enable: Boolean) {
+        if (_useGooglePlaces.value == enable) return
+        _useGooglePlaces.value = enable
+        refresh()
     }
     
     /**
      * Toggle favorite status for a trail.
      */
-    fun toggleFavorite(trailId: String, isFavorite: Boolean) {
+    fun toggleFavorite(trail: Trail, isFavorite: Boolean) {
         viewModelScope.launch {
-            trailRepository.toggleFavorite(trailId, isFavorite).collect { result ->
+            trailRepository.toggleFavorite(trail, isFavorite).collect { result ->
                 when (result) {
                     is NetworkResult.Success -> {
                         // Update local trail list immediately for responsive UI
-                        _trails.value = _trails.value.map { trail ->
-                            if (trail.id == trailId) {
-                                trail.copy(isFavorite = isFavorite)
+                        _trails.value = _trails.value.map { item ->
+                            if (item.id == trail.id) {
+                                item.copy(isFavorite = isFavorite)
                             } else {
-                                trail
+                                item
                             }
                         }
                     }
@@ -240,7 +322,7 @@ class TrailsViewModel @Inject constructor(
      * Refresh the trails list
      */
     fun refresh() {
-        loadTrails()
+        loadTrails(_useGooglePlaces.value)
     }
     
     /**

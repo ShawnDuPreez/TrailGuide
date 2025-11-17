@@ -281,7 +281,7 @@ fun DownloadedTrailCard(
                         )
                         Text("•", color = TextTertiary)
                         Text(
-                            trail.difficulty.displayName,
+                            trail.difficulty?.displayName ?: "Moderate",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextTertiary
                         )

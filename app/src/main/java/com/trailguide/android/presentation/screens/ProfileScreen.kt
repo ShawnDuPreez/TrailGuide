@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trailguide.android.BuildConfig
+import com.trailguide.android.R
 import com.trailguide.android.data.model.Language
 import com.trailguide.android.presentation.theme.*
 import com.trailguide.android.presentation.viewmodel.ProfileViewModel
@@ -95,7 +97,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Login, contentDescription = null)
-                    Text("Authentication (Supabase)", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings), style = MaterialTheme.typography.titleMedium)
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -138,13 +140,13 @@ fun ProfileScreen(
                         ) {
                             Icon(Icons.Default.Login, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sign In")
+                            Text(stringResource(R.string.sign_in_google))
                         }
                     } else {
                         OutlinedButton(onClick = { viewModel.signOut() }) {
                             Icon(Icons.Default.Logout, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sign Out")
+                            Text(stringResource(R.string.sign_out))
                         }
                     }
                 }
@@ -276,7 +278,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Fingerprint, contentDescription = null)
-                    Text("Biometric Login", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_biometric), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -284,7 +286,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Enable biometric authentication", color = TextSecondary)
+                    Text(stringResource(R.string.settings_biometric_description), color = TextSecondary)
                     Switch(
                         checked = userPreferences.biometricsEnabled,
                         onCheckedChange = { viewModel.setBiometricsEnabled(it) }
@@ -306,7 +308,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Notifications, contentDescription = null)
-                    Text("Notifications", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_notifications), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -314,7 +316,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Trail reminders & safety alerts", color = TextSecondary)
+                    Text(stringResource(R.string.notifications_weather), color = TextSecondary)
                     Switch(
                         checked = userPreferences.notificationsEnabled,
                         onCheckedChange = { viewModel.setNotificationsEnabled(it) }
@@ -336,8 +338,16 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Language, contentDescription = null)
-                    Text("Language", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.settings_language), style = MaterialTheme.typography.titleMedium)
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.language_english) + " / " + 
+                    stringResource(R.string.language_afrikaans) + " / " + 
+                    stringResource(R.string.language_zulu),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -346,8 +356,22 @@ fun ProfileScreen(
                     Language.entries.forEach { language ->
                         FilterChip(
                             selected = userPreferences.language == language,
-                            onClick = { viewModel.setLanguage(language) },
-                            label = { Text(language.code.uppercase()) }
+                            onClick = { 
+                                viewModel.setLanguage(language)
+                            },
+                            label = { 
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(language.code.uppercase())
+                                    Text(
+                                        when (language) {
+                                            Language.ENGLISH -> "English"
+                                            Language.AFRIKAANS -> "Afrikaans"
+                                            Language.ZULU -> "isiZulu"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
                         )
                     }
                 }

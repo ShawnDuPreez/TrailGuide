@@ -6,6 +6,9 @@ import com.trailguide.android.data.local.DownloadedTrailDao
 import com.trailguide.android.data.local.TrailDatabase
 import com.trailguide.android.data.local.ReviewDao
 import com.trailguide.android.data.local.CollectionDao
+import com.trailguide.android.data.google.GoogleDirectionsApiService
+import com.trailguide.android.data.google.GoogleElevationApiService
+import com.trailguide.android.data.google.GooglePlacesApiService
 import com.trailguide.android.data.remote.ApiClient
 import com.trailguide.android.data.remote.AuthApiService
 import com.trailguide.android.data.remote.TrailApiService
@@ -15,6 +18,9 @@ import com.trailguide.android.data.repository.PreferencesRepository
 import com.trailguide.android.data.repository.TrailRepository
 import com.trailguide.android.data.repository.WeatherRepository
 import com.trailguide.android.data.security.BiometricAuthenticationManager
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import dagger.Module
@@ -117,6 +123,28 @@ object AppModule {
     }
     
     /**
+     * Provides Favorite Trail DAO.
+     */
+    @Provides
+    @Singleton
+    fun provideFavoriteTrailDao(
+        database: TrailDatabase
+    ): com.trailguide.android.data.local.FavoriteTrailDao {
+        return database.favoriteTrailDao()
+    }
+    
+    /**
+     * Provides Trail Progress DAO.
+     */
+    @Provides
+    @Singleton
+    fun provideTrailProgressDao(
+        database: TrailDatabase
+    ): com.trailguide.android.data.local.TrailProgressDao {
+        return database.trailProgressDao()
+    }
+    
+    /**
      * Provides Trail Repository.
      */
     @Provides
@@ -185,5 +213,77 @@ object AppModule {
         weatherApiService: WeatherApiService
     ): WeatherRepository {
         return WeatherRepository(weatherApiService)
+    }
+    
+    /**
+     * Provides JSON serializer for Google APIs.
+     */
+    @Provides
+    @Singleton
+    fun provideJson(): Json {
+        return Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            coerceInputValues = true
+        }
+    }
+    
+    /**
+     * Provides Google Places API service.
+     */
+    @Provides
+    @Singleton
+    fun provideGooglePlacesApiService(json: Json): GooglePlacesApiService {
+        return Retrofit.Builder()
+            .baseUrl(GooglePlacesApiService.BASE_URL)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(GooglePlacesApiService::class.java)
+    }
+    
+    /**
+     * Provides Google Directions API service.
+     */
+    @Provides
+    @Singleton
+    fun provideGoogleDirectionsApiService(json: Json): GoogleDirectionsApiService {
+        return Retrofit.Builder()
+            .baseUrl(GoogleDirectionsApiService.BASE_URL)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(GoogleDirectionsApiService::class.java)
+    }
+    
+    /**
+     * Provides Google Elevation API service.
+     */
+    @Provides
+    @Singleton
+    fun provideGoogleElevationApiService(json: Json): GoogleElevationApiService {
+        return Retrofit.Builder()
+            .baseUrl(GoogleElevationApiService.BASE_URL)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(GoogleElevationApiService::class.java)
+    }
+    
+    /**
+     * Provides Overpass API service for OSM trails.
+     */
+    @Provides
+    @Singleton
+    fun provideOverpassApiService(json: Json): com.trailguide.android.data.osm.OverpassApiService {
+        return Retrofit.Builder()
+            .baseUrl(com.trailguide.android.data.osm.OverpassApiService.BASE_URL)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .client(
+                okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+            )
+            .build()
+            .create(com.trailguide.android.data.osm.OverpassApiService::class.java)
     }
 }

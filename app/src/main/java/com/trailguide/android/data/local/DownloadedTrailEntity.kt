@@ -27,7 +27,9 @@ data class DownloadedTrailEntity(
     val description: String?,
     val routeCoordinates: List<RoutePoint>,
     val downloadedAt: Long = System.currentTimeMillis(),
-    val sizeBytes: Long = 0
+    val sizeBytes: Long = 0,
+    val syncStatus: String = SyncStatus.SYNCED.name,
+    val lastSyncedAt: Long = System.currentTimeMillis()
 )
 
 /**
@@ -62,13 +64,13 @@ fun Trail.toEntity(): DownloadedTrailEntity {
     return DownloadedTrailEntity(
         id = id,
         name = name,
-        city = city,
+        city = city ?: "Unknown",
         latitude = latitude,
         longitude = longitude,
-        distanceKm = distanceKm,
-        elevationM = elevationM,
-        difficulty = difficulty.name,
-        rating = rating,
+        distanceKm = distanceKm ?: 0.0,
+        elevationM = elevationM ?: 0,
+        difficulty = difficulty?.name ?: "MODERATE",
+        rating = rating ?: 0.0,
         imageUrl = imageUrl,
         tags = tags,
         description = description,

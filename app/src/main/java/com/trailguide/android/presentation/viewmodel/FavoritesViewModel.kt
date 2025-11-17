@@ -72,16 +72,16 @@ class FavoritesViewModel @Inject constructor(
     
     private fun loadCollections() {
         viewModelScope.launch {
-            collectionDao.getAllCollections().collect { entities ->
+            collectionDao.getAllCollectionsFlow().collect { entities ->
                 _collections.value = entities.map { it.toDomainModel() }
             }
         }
     }
     
-    fun toggleFavorite(trailId: String) {
+    fun toggleFavorite(trail: Trail) {
         viewModelScope.launch {
-            val isFavorite = _favoriteTrails.value.any { it.id == trailId }
-            trailRepository.toggleFavorite(trailId, !isFavorite).collect { result ->
+            val isFavorite = _favoriteTrails.value.any { it.id == trail.id }
+            trailRepository.toggleFavorite(trail, !isFavorite).collect { result ->
                 when (result) {
                     is NetworkResult.Success -> {
                         loadFavorites()

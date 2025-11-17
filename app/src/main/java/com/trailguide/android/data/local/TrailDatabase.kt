@@ -14,9 +14,11 @@ import androidx.room.TypeConverters
     entities = [
         DownloadedTrailEntity::class,
         ReviewEntity::class,
-        CollectionEntity::class
+        CollectionEntity::class,
+        FavoriteTrailEntity::class,
+        TrailProgressEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -25,6 +27,8 @@ abstract class TrailDatabase : RoomDatabase() {
     abstract fun downloadedTrailDao(): DownloadedTrailDao
     abstract fun reviewDao(): ReviewDao
     abstract fun collectionDao(): CollectionDao
+    abstract fun favoriteTrailDao(): FavoriteTrailDao
+    abstract fun trailProgressDao(): TrailProgressDao
     
     companion object {
         @Volatile

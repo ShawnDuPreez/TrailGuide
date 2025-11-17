@@ -11,21 +11,30 @@ import kotlinx.parcelize.Parcelize
 data class Trail(
     val id: String,
     val name: String,
-    val city: String,
+    val city: String? = null,
     val latitude: Double,
     val longitude: Double,
-    val distanceKm: Double,
-    val elevationM: Int,
-    val difficulty: Difficulty,
-    val rating: Double,
-    val imageUrl: String?,
+    val distanceKm: Double? = null, // Auto-fetched from Directions API
+    val elevationM: Int? = null, // Auto-fetched from Elevation API
+    val difficulty: Difficulty? = null, // Optional for now
+    val rating: Double? = null, // Auto-fetched from Places API
+    val reviewCount: Int? = null, // Auto-fetched from Places API
+    val imageUrl: String? = null, // Auto-fetched from Places API
     val tags: List<String> = emptyList(),
     val isDownloaded: Boolean = false,
     val isFavorite: Boolean = false,
-    val description: String? = null,
-    val segments: List<TrailSegment> = emptyList(),
-    val routeCoordinates: List<RoutePoint> = emptyList()  // GPS coordinates for trail path
-) : Parcelable
+    val description: String? = null, // Auto-fetched from Places API
+    val duration: String? = null, // Auto-calculated from distance/elevation
+    val segments: List<TrailSegment> = emptyList(), // Auto-generated from Directions steps
+    val routeCoordinates: List<RoutePoint> = emptyList(), // Auto-fetched from Directions polyline
+    val formattedAddress: String? = null, // From Places API
+    val website: String? = null, // From Places API
+    val phoneNumber: String? = null // From Places API
+) : Parcelable {
+    // Computed properties
+    val distance: Double? get() = distanceKm
+    val elevationGain: Int? get() = elevationM
+}
 
 /**
  * GPS coordinate point for trail route visualization
@@ -59,12 +68,17 @@ enum class Difficulty(val displayName: String, val order: Int) {
 
 /**
  * Represents a segment of a trail with specific characteristics.
+ * Auto-generated from Google Directions API steps.
  */
 @Parcelize
 data class TrailSegment(
-    val name: String,
-    val type: String, // e.g., "Steep", "Exposed", "Family"
-    val distance: Double? = null,
-    val elevation: Int? = null
+    val name: String, // e.g., "Trailhead → River Crossing"
+    val description: String? = null, // Instructions from Directions API
+    val type: String? = null, // e.g., "Steep", "Exposed", "Family" (can be inferred)
+    val distance: Double? = null, // Distance in meters
+    val duration: Int? = null, // Duration in seconds
+    val elevation: Int? = null, // Elevation gain in meters
+    val startPoint: RoutePoint? = null,
+    val endPoint: RoutePoint? = null
 ) : Parcelable
 

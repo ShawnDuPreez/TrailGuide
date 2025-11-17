@@ -113,7 +113,7 @@ fun FavoritesScreen(
                             TrailCard(
                                 trail = trail,
                                 onClick = { onTrailClick(trail.id) },
-                                onFavoriteClick = { viewModel.toggleFavorite(trail.id) }
+                                onFavoriteClick = { viewModel.toggleFavorite(trail) }
                             )
                         }
                     }

@@ -54,9 +54,24 @@ fun TrailDto.toDomainModel(): Trail {
  */
 private fun generateDefaultSegments(trailName: String): List<TrailSegment> {
     return listOf(
-        TrailSegment("Trailhead → River Crossing", "Family", 2.0, 50),
-        TrailSegment("River Crossing → Ridge", "Steep", 3.5, 200),
-        TrailSegment("Ridge → Summit", "Exposed", 2.9, 170)
+        TrailSegment(
+            name = "Trailhead → River Crossing",
+            type = "Family",
+            distance = 2000.0,
+            elevation = 50
+        ),
+        TrailSegment(
+            name = "River Crossing → Ridge",
+            type = "Steep",
+            distance = 3500.0,
+            elevation = 200
+        ),
+        TrailSegment(
+            name = "Ridge → Summit",
+            type = "Exposed",
+            distance = 2900.0,
+            elevation = 170
+        )
     )
 }
 
@@ -64,6 +79,7 @@ private fun generateDefaultSegments(trailName: String): List<TrailSegment> {
  * API request for creating/updating trails.
  */
 data class CreateTrailRequest(
+    val id: String? = null,
     val name: String,
     val city: String,
     val latitude: Double,
@@ -76,6 +92,26 @@ data class CreateTrailRequest(
     val tags: List<String>? = null,
     val description: String? = null
 )
+
+/**
+ * Extension function to convert Trail model to CreateTrailRequest.
+ */
+fun Trail.toCreateRequest(): CreateTrailRequest {
+    return CreateTrailRequest(
+        id = id,
+        name = name,
+        city = city ?: "Unknown",
+        latitude = latitude,
+        longitude = longitude,
+        distanceKm = distanceKm ?: 0.0,
+        elevationM = elevationM ?: 0,
+        difficulty = difficulty?.name?.lowercase() ?: "moderate",
+        rating = rating ?: 0.0,
+        imageUrl = imageUrl,
+        tags = tags,
+        description = description
+    )
+}
 
 /**
  * Generic API response wrapper.

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.trailguide.android.data.model.Difficulty
 import com.trailguide.android.data.model.SafetyRating
 import com.trailguide.android.data.model.Trail
 import com.trailguide.android.data.model.TrailSegment
@@ -143,7 +144,7 @@ fun TrailDetailsContent(
                             text = trail.name,
                             style = MaterialTheme.typography.headlineSmall
                         )
-                        DifficultyBadge(trail.difficulty)
+                        DifficultyBadge(trail.difficulty ?: Difficulty.MODERATE)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
@@ -154,7 +155,7 @@ fun TrailDetailsContent(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = trail.city,
+                            text = trail.city ?: "Unknown",
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )
@@ -621,7 +622,7 @@ fun SegmentItem(segment: TrailSegment) {
             shape = MaterialTheme.shapes.small
         ) {
             Text(
-                text = segment.type,
+                text = segment.type ?: "Moderate",
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = Secondary

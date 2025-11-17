@@ -15,7 +15,9 @@ data class CollectionEntity(
     val description: String?,
     val trailIds: List<String>,
     val createdAt: Long,
-    val coverImage: String?
+    val coverImage: String?,
+    val syncStatus: String = SyncStatus.PENDING.name,
+    val lastSyncedAt: Long = 0L
 )
 
 fun CollectionEntity.toDomainModel(): TrailCollection {
