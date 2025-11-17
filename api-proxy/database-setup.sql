@@ -31,6 +31,19 @@ CREATE TABLE IF NOT EXISTS favourites (
     PRIMARY KEY (user_id, trail_id)
 );
 
+-- Device FCM tokens
+CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    fcm_token TEXT UNIQUE NOT NULL,
+    device_info TEXT,
+    last_weather_alert_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_fcm_tokens_user_id ON user_fcm_tokens(user_id);
+
 -- Activities table (for offline sync)
 CREATE TABLE IF NOT EXISTS activities (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

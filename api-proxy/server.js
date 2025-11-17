@@ -15,6 +15,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
+const notificationService = require('./services/notificationService');
+const notificationsEnabled = process.env.NOTIFICATION_ENABLED !== 'false';
+const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
 
 // Initialize Express app
 const app = express();
@@ -188,6 +191,48 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/users/fcm-token
+ * Register or update device FCM token
+ */
+app.post('/api/users/fcm-token', authenticateToken, async (req, res) => {
+  try {
+    const { userId, fcmToken, deviceInfo } = req.body || {};
+    
+    if (!userId || !fcmToken) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['userId', 'fcmToken']
+      });
+    }
+    
+    if (req.user.user_id !== userId) {
+      return res.status(403).json({ error: 'User mismatch' });
+    }
+    
+    const upsertPayload = {
+      user_id: userId,
+      fcm_token: fcmToken,
+      device_info: deviceInfo || null,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { error } = await supabase
+      .from('user_fcm_tokens')
+      .upsert([upsertPayload], { onConflict: 'fcm_token' });
+    
+    if (error) throw error;
+    
+    res.json({ status: 'ok' });
+  } catch (error) {
+    console.error('Error saving FCM token:', error);
+    res.status(500).json({
+      error: 'Failed to save FCM token',
+      message: error.message
+    });
+  }
+});
+
 // ============================================================================
 // Trail Endpoints
 // ============================================================================
@@ -336,6 +381,12 @@ app.post('/api/trails', async (req, res) => {
     if (error) throw error;
     
     res.status(201).json(data);
+    
+    if (notificationsEnabled && data?.lat && data?.lon) {
+      notifyUsersAboutNewTrail(data).catch(err => {
+        console.error('New trail notification error:', err);
+      });
+    }
   } catch (error) {
     console.error('Error creating trail:', error);
     res.status(500).json({
@@ -419,6 +470,12 @@ app.post('/api/trails/:id/reviews', authenticateToken, upload.array('photos', 5)
       status: 'saved',
       photo_count: photoUrls.length
     });
+    
+    if (notificationsEnabled) {
+      notifyFriendsAboutReview(userId, user?.name || 'A friend', trailId).catch(err => {
+        console.error('Friend activity notification error:', err);
+      });
+    }
   } catch (error) {
     console.error('Error creating review:', error);
     res.status(500).json({
@@ -577,6 +634,70 @@ app.delete('/api/users/:id/favourites/:trailId', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/weather-check
+ * Inspect recent activity and send weather alerts when needed
+ */
+app.post('/api/weather-check', authenticateToken, async (req, res) => {
+  if (!notificationsEnabled) {
+    return res.json({ status: 'notifications_disabled' });
+  }
+  
+  if (!OPENWEATHER_API_KEY) {
+    return res.status(500).json({ error: 'Weather API key not configured' });
+  }
+  
+  try {
+    const lookback = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { data: sessions, error } = await supabase
+      .from('activities')
+      .select('user_id, trail_id, completed_at')
+      .gte('completed_at', lookback);
+    
+    if (error) throw error;
+    
+    if (!sessions || sessions.length === 0) {
+      return res.json({ status: 'ok', alertsSent: 0, message: 'No recent activity' });
+    }
+    
+    const trailIds = [...new Set(sessions.map(session => session.trail_id))];
+    const { data: trails, error: trailError } = await supabase
+      .from('trails')
+      .select('id, name, lat, lon')
+      .in('id', trailIds);
+    
+    if (trailError) throw trailError;
+    
+    const trailMap = new Map((trails || []).map(trail => [trail.id, trail]));
+    let alertsSent = 0;
+    
+    for (const session of sessions) {
+      const trail = trailMap.get(session.trail_id);
+      if (!trail || trail.lat === undefined || trail.lon === undefined) {
+        continue;
+      }
+      
+      try {
+        const weatherData = await fetchWeatherData(trail.lat, trail.lon);
+        if (isDangerousWeather(weatherData)) {
+          await notificationService.sendWeatherAlert(session.user_id, trail.name || 'Trail', weatherData);
+          alertsSent += 1;
+        }
+      } catch (weatherError) {
+        console.error('Weather check error:', weatherError);
+      }
+    }
+    
+    res.json({ status: 'ok', alertsSent });
+  } catch (error) {
+    console.error('Weather check error:', error);
+    res.status(500).json({
+      error: 'Weather check failed',
+      message: error.message
+    });
+  }
+});
+
 // ============================================================================
 // Offline Sync Endpoint
 // ============================================================================
@@ -662,6 +783,110 @@ app.post('/api/sync', authenticateToken, async (req, res) => {
     });
   }
 });
+
+// ============================================================================
+// Notification Helpers
+// ============================================================================
+
+async function notifyUsersAboutNewTrail(trail) {
+  try {
+    const { data: favourites, error } = await supabase
+      .from('favourites')
+      .select('user_id, trail_id');
+    
+    if (error || !favourites || favourites.length === 0) {
+      return;
+    }
+    
+    const trailIds = [...new Set(favourites.map(fav => fav.trail_id))];
+    const { data: trailCoords, error: trailError } = await supabase
+      .from('trails')
+      .select('id, lat, lon')
+      .in('id', trailIds);
+    
+    if (trailError || !trailCoords) {
+      return;
+    }
+    
+    const coordMap = new Map(trailCoords.map(item => [item.id, item]));
+    const recipients = new Set();
+    
+    favourites.forEach(favorite => {
+      const savedTrail = coordMap.get(favorite.trail_id);
+      if (!savedTrail) return;
+      const distanceKm = calculateDistance(trail.lat, trail.lon, savedTrail.lat, savedTrail.lon);
+      if (distanceKm <= 20) {
+        recipients.add(favorite.user_id);
+      }
+    });
+    
+    for (const userId of recipients) {
+      await notificationService.sendNewTrailNotification(userId, {
+        id: trail.id,
+        name: trail.name,
+        city: trail.city
+      });
+    }
+  } catch (error) {
+    console.error('notifyUsersAboutNewTrail error:', error);
+  }
+}
+
+async function notifyFriendsAboutReview(reviewerId, reviewerName, trailId) {
+  try {
+    const { data: favourites, error } = await supabase
+      .from('favourites')
+      .select('user_id')
+      .eq('trail_id', trailId);
+    
+    if (error || !favourites) {
+      return;
+    }
+    
+    const recipients = new Set(
+      favourites
+        .map(item => item.user_id)
+        .filter(userId => userId !== reviewerId)
+    );
+    
+    for (const userId of recipients) {
+      await notificationService.sendFriendActivity(
+        userId,
+        reviewerName,
+        `reviewed trail ${trailId}`
+      );
+    }
+  } catch (error) {
+    console.error('notifyFriendsAboutReview error:', error);
+  }
+}
+
+async function fetchWeatherData(lat, lon) {
+  const url = new URL('https://api.openweathermap.org/data/2.5/weather');
+  url.searchParams.set('lat', lat);
+  url.searchParams.set('lon', lon);
+  url.searchParams.set('appid', OPENWEATHER_API_KEY);
+  url.searchParams.set('units', 'metric');
+  
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Weather API error: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+function isDangerousWeather(weatherData) {
+  if (!weatherData) return false;
+  const main = weatherData.weather?.[0]?.main || '';
+  const temp = weatherData.main?.temp ?? 0;
+  const wind = weatherData.wind?.speed ?? 0;
+  
+  const severeConditions = ['Thunderstorm', 'Drizzle', 'Rain', 'Snow', 'Extreme'];
+  if (severeConditions.includes(main)) return true;
+  if (temp <= -5 || temp >= 35) return true;
+  if (wind >= 14) return true; // ~50 km/h
+  return false;
+}
 
 // ============================================================================
 // Utility Functions
