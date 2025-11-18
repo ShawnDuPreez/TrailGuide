@@ -162,11 +162,16 @@ class AuthViewModel @Inject constructor(
     
     /**
      * Store biometric credentials after successful login.
+     * For email/password users, stores email and password.
+     * For SSO users, stores the session refresh token.
      */
-    fun storeBiometricCredentials(activity: FragmentActivity) {
+    fun storeBiometricCredentials(activity: FragmentActivity, email: String? = null, password: String? = null) {
         viewModelScope.launch {
-            if (_email.value.isNotBlank() && _password.value.isNotBlank()) {
-                authRepository.storeBiometricCredentials(activity, _email.value, _password.value).collect { result ->
+            val userEmail = email ?: _email.value
+            val userPassword = password
+            
+            if (userEmail.isNotBlank()) {
+                authRepository.storeBiometricCredentials(activity, userEmail, userPassword).collect { result ->
                     when (result) {
                         is com.trailguide.android.data.remote.NetworkResult.Success -> {
                             // Credentials stored successfully
