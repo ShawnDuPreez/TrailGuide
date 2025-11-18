@@ -1,17 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App Name -->
     <string name="app_name">TrailGuide</string>
+    
+    <!-- Navigation -->
     <string name="trails_screen_title">Trails</string>
+    <string name="trails">Trails</string>
+    <string name="favorites">Favorites</string>
     <string name="map_screen_title">Map</string>
+    <string name="map">Map</string>
     <string name="downloads_screen_title">Downloads</string>
+    <string name="downloads">Downloads</string>
     <string name="profile_screen_title">Profile</string>
-    <string name="search_hint">Search trails...</string>
+    <string name="profile">Profile</string>
+    <string name="search_hint">Search trails…</string>
     <string name="filter_difficulty">Difficulty</string>
     <string name="filter_distance">Distance</string>
+    
+    <!-- Authentication -->
     <string name="sign_in_google">Sign in with Google</string>
     <string name="sign_out">Sign Out</string>
+    <string name="sign_in">Sign In</string>
+    <string name="register">Register</string>
+    <string name="back_to_sign_in">Back to Sign In</string>
+    <string name="authentication_supabase">Authentication (Supabase)</string>
+    <string name="sign_in_with_google_supabase">Sign in with Google using Supabase Authentication</string>
+    <string name="or_sign_in_with_email">Or sign in with Email</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="display_name">Display Name</string>
+    <string name="note_google_sign_in">Note: If you signed in with Google, use Google sign-in above</string>
+    <string name="guest">Guest</string>
+    <string name="user">User</string>
+    <string name="supabase_auth">Supabase Auth</string>
+    
+    <!-- Profile Screen -->
+    <string name="biometric_login">Biometric Login</string>
+    <string name="enable_biometric_authentication">Enable biometric authentication</string>
+    <string name="notifications">Notifications</string>
+    <string name="trail_reminders_safety_alerts">Trail reminders &amp; safety alerts</string>
+    <string name="notifications_at">Notifications at %1$s</string>
+    <string name="test_notification_now">Test Notification Now</string>
+    <string name="select_notification_time">Select Notification Time</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
+    <string name="language">Language</string>
+    <string name="app_info">TrailGuide Android</string>
+    <string name="version">Version %1$s</string>
+    <string name="native_kotlin_mvvm">Native Kotlin • MVVM Architecture</string>
+    <string name="supabase_auth_database">Supabase Authentication &amp; Database</string>
+    
+    <!-- Trail Details -->
+    <string name="trail_details">Trail Details</string>
+    <string name="back">Back</string>
+    <string name="stats">Stats</string>
+    <string name="distance">Distance</string>
+    <string name="elevation">Elevation</string>
+    <string name="rating">Rating</string>
+    <string name="description">Description</string>
+    <string name="segments">Segments</string>
     <string name="start_hike">Start Hike</string>
     <string name="download_offline">Download for Offline</string>
     <string name="favorite">Favorite</string>
+    <string name="retry">Retry</string>
+    
+    <!-- Reviews -->
+    <string name="community_reviews">Community Reviews</string>
+    <string name="reviews_count">%1$d reviews</string>
+    <string name="add_review">Add Review</string>
+    <string name="no_reviews_yet">No reviews yet</string>
+    <string name="be_first_to_share">Be the first to share your experience!</string>
+    
+    <!-- Favorites Screen -->
+    <string name="collections">Collections</string>
+    <string name="no_favorite_trails_yet">No favorite trails yet</string>
+    <string name="tap_heart_to_add">Tap the heart icon on any trail to add it here</string>
+    <string name="refresh">Refresh</string>
+    <string name="no_collections_yet">No collections yet</string>
+    <string name="create_collections_hint">Create collections to organize your favorite trails</string>
+    <string name="create_collection">Create Collection</string>
+    <string name="collection_name">Collection Name</string>
+    <string name="description_optional">Description (optional)</string>
+    <string name="create">Create</string>
+    <string name="trails_count">%1$d trails</string>
+    
+    <!-- Weather -->
+    <string name="weather_conditions">Weather Conditions</string>
+    <string name="refresh_weather">Refresh weather</string>
+    <string name="feels_like">Feels like %1$d°C</string>
+    <string name="humidity">Humidity</string>
+    <string name="wind">Wind</string>
+    <string name="trail_safety_rating">Trail Safety Rating</string>
+    <string name="three_day_forecast">3-Day Forecast</string>
+    <string name="temp_range">%1$d° / %2$d°</string>
+    
+    <!-- Notifications -->
+    <string name="daily_weather_channel">Daily Weather</string>
+    <string name="daily_weather_channel_description">Daily weather updates for your location</string>
+    <string name="safety_alerts_channel">Safety Alerts</string>
+    <string name="safety_alerts_channel_description">Weather safety alerts for dangerous conditions</string>
+    <string name="good_morning_todays_weather">Good Morning! Today\'s Weather</string>
+    <string name="weather_notification_body">%1$d°C - %2$s\nSafety: %3$s</string>
+    <string name="weather_safety_alert">⚠️ Weather Safety Alert</string>
+    <string name="high_winds_detected">⚠️ High winds detected (%1$d km/h). </string>
+    <string name="thunderstorm_warning">⚠️ Thunderstorm warning. </string>
+    <string name="heavy_rain_expected">⚠️ Heavy rain expected. </string>
+    <string name="dangerous_weather_conditions">⚠️ Dangerous weather conditions. </string>
+    <string name="avoid_hiking_trails_today">Avoid hiking trails today. </string>
+    <string name="current_weather">Current: %1$d°C, %2$s</string>
+    
+    <!-- Safety Ratings -->
+    <string name="safety_excellent">Excellent</string>
+    <string name="safety_good">Good</string>
+    <string name="safety_moderate">Moderate</string>
+    <string name="safety_poor">Poor</string>
+    <string name="safety_dangerous">Dangerous</string>
+    
+    <!-- Messages -->
+    <string name="dismiss">Dismiss</string>
+    <string name="test_notification">Test notification</string>
+    <string name="edit_notification_time">Edit notification time</string>
 </resources>
-

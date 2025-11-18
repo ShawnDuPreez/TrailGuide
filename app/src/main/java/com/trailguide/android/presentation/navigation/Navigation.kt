@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -18,6 +19,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trailguide.android.R
 import com.trailguide.android.presentation.screens.*
 import com.trailguide.android.presentation.viewmodel.TrailDetailsViewModel
 
@@ -52,7 +54,7 @@ fun TrailGuideApp() {
         topBar = {
             // Top bar with app title
             TopAppBar(
-                title = { Text("TrailGuide") },
+                title = { Text(stringResource(R.string.app_name)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
@@ -62,7 +64,7 @@ fun TrailGuideApp() {
             NavigationBar(
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
-                bottomNavItems.forEach { item ->
+                getBottomNavItems().forEach { item ->
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.title) },
                         label = { Text(item.title) },
@@ -149,31 +151,33 @@ fun TrailGuideApp() {
 
 /**
  * Bottom navigation items.
+ * Note: Title strings are resolved using stringResource in the composable.
  */
-val bottomNavItems = listOf(
+@Composable
+fun getBottomNavItems(): List<BottomNavItem> = listOf(
     BottomNavItem(
         Screen.Trails,
-        "Trails",
+        stringResource(R.string.trails),
         Icons.Filled.Hiking
     ),
     BottomNavItem(
         Screen.Favorites,
-        "Favorites",
+        stringResource(R.string.favorites),
         Icons.Filled.Favorite
     ),
     BottomNavItem(
         Screen.Map,
-        "Map",
+        stringResource(R.string.map),
         Icons.Filled.Map
     ),
     BottomNavItem(
         Screen.Downloads,
-        "Downloads",
+        stringResource(R.string.downloads),
         Icons.Filled.Download
     ),
     BottomNavItem(
         Screen.Profile,
-        "Profile",
+        stringResource(R.string.profile),
         Icons.Filled.Person
     )
 )

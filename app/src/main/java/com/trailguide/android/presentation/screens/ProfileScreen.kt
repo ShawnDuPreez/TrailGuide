@@ -18,16 +18,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trailguide.android.BuildConfig
+import com.trailguide.android.R
 import com.trailguide.android.data.model.Language
 import com.trailguide.android.data.notification.TrailNotificationManager
 import com.trailguide.android.presentation.theme.*
 import com.trailguide.android.presentation.viewmodel.ProfileViewModel
+import androidx.activity.ComponentActivity
 
 /**
  * Profile and settings screen.
@@ -40,6 +43,7 @@ fun ProfileScreen(
     authStateViewModel: com.trailguide.android.presentation.viewmodel.AuthStateViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val activity = context as? ComponentActivity
     val currentUser by viewModel.currentUser.collectAsState()
     val isSignedIn by viewModel.isSignedIn.collectAsState()
     val userPreferences by viewModel.userPreferences.collectAsState()
@@ -86,7 +90,7 @@ fun ProfileScreen(
                         color = Error
                     )
                     IconButton(onClick = { viewModel.clearError() }) {
-                        Icon(Icons.Default.Close, "Dismiss", tint = Error)
+                        Icon(Icons.Default.Close, stringResource(R.string.dismiss), tint = Error)
                     }
                 }
             }
@@ -105,7 +109,7 @@ fun ProfileScreen(
                         color = Success
                     )
                     IconButton(onClick = { viewModel.clearSuccessMessage() }) {
-                        Icon(Icons.Default.Close, "Dismiss", tint = Success)
+                        Icon(Icons.Default.Close, stringResource(R.string.dismiss), tint = Success)
                     }
                 }
             }
@@ -124,7 +128,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Login, contentDescription = null)
-                    Text("Authentication (Supabase)", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.authentication_supabase), style = MaterialTheme.typography.titleMedium)
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -155,7 +159,7 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Supabase Auth",
+                            text = stringResource(R.string.supabase_auth),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -206,7 +210,7 @@ fun ProfileScreen(
                 
                 // Info text about Supabase OAuth
                 Text(
-                    "Sign in with Google using Supabase Authentication",
+                    stringResource(R.string.sign_in_with_google_supabase),
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
@@ -226,7 +230,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Fingerprint, contentDescription = null)
-                    Text("Biometric Login", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.biometric_login), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -234,7 +238,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Enable biometric authentication", color = TextSecondary)
+                    Text(stringResource(R.string.enable_biometric_authentication), color = TextSecondary)
                     Switch(
                         checked = userPreferences.biometricsEnabled,
                         onCheckedChange = { 
@@ -270,7 +274,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Notifications, contentDescription = null)
-                    Text("Notifications", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.notifications), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -278,7 +282,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Trail reminders & safety alerts", color = TextSecondary)
+                    Text(stringResource(R.string.trail_reminders_safety_alerts), color = TextSecondary)
                     Switch(
                         checked = userPreferences.notificationsEnabled,
                         onCheckedChange = { enabled ->
@@ -308,17 +312,17 @@ fun ProfileScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Notifications at ${String.format("%02d:%02d", notificationTime.first, notificationTime.second)}",
+                            text = stringResource(R.string.notifications_at, String.format("%02d:%02d", notificationTime.first, notificationTime.second)),
                             color = TextSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             // Test notification button (for testing)
                             IconButton(onClick = { viewModel.testNotificationNow() }) {
-                                Icon(Icons.Default.NotificationsActive, contentDescription = "Test notification")
+                                Icon(Icons.Default.NotificationsActive, contentDescription = stringResource(R.string.test_notification))
                             }
                             IconButton(onClick = { viewModel.showTimePicker() }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit notification time")
+                                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_notification_time))
                             }
                         }
                     }
@@ -332,7 +336,7 @@ fun ProfileScreen(
                 ) {
                     Icon(Icons.Default.NotificationsActive, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Test Notification Now")
+                    Text(stringResource(R.string.test_notification_now))
                 }
             }
         }
@@ -347,7 +351,7 @@ fun ProfileScreen(
             
             AlertDialog(
                 onDismissRequest = { viewModel.hideTimePicker() },
-                title = { Text("Select Notification Time") },
+                title = { Text(stringResource(R.string.select_notification_time)) },
                 text = {
                     TimePicker(
                         state = timePickerState,
@@ -385,12 +389,12 @@ fun ProfileScreen(
                             }
                         }
                     ) {
-                        Text("Confirm")
+                        Text(stringResource(R.string.confirm))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.hideTimePicker() }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.cancel))
                     }
                 }
             )
@@ -409,7 +413,7 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(Icons.Default.Language, contentDescription = null)
-                    Text("Language", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.language), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
@@ -419,7 +423,12 @@ fun ProfileScreen(
                     Language.entries.forEach { language ->
                         FilterChip(
                             selected = userPreferences.language == language,
-                            onClick = { viewModel.setLanguage(language) },
+                            onClick = { 
+                                viewModel.setLanguage(language, onLanguageChanged = {
+                                    // Recreate activity to apply new locale
+                                    activity?.recreate()
+                                })
+                            },
                             label = { Text(language.code.uppercase()) }
                         )
                     }
@@ -438,10 +447,10 @@ fun ProfileScreen(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text("TrailGuide Android", style = MaterialTheme.typography.titleMedium)
-                Text("Version ${BuildConfig.VERSION_NAME}", color = TextSecondary)
-                Text("Native Kotlin • MVVM Architecture", color = TextSecondary, style = MaterialTheme.typography.bodySmall)
-                Text("Supabase Authentication & Database", color = Primary, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.app_info), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.version, BuildConfig.VERSION_NAME), color = TextSecondary)
+                Text(stringResource(R.string.native_kotlin_mvvm), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.supabase_auth_database), color = Primary, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

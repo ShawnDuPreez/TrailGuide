@@ -21,7 +21,8 @@ interface WeatherApiService {
         @Query("key") apiKey: String,
         @Query("location.latitude") latitude: Double,
         @Query("location.longitude") longitude: Double,
-        @Query("days") days: Int = 5
+        @Query("days") days: Int = 5,
+        @Query("languageCode") languageCode: String = "en"
     ): Response<GoogleForecastResponseDto>
 }
 

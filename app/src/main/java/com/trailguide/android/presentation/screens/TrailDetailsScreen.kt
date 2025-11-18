@@ -16,9 +16,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.trailguide.android.R
 import com.trailguide.android.data.model.SafetyRating
 import com.trailguide.android.data.model.Trail
 import com.trailguide.android.data.model.TrailSegment
@@ -47,10 +49,10 @@ fun TrailDetailsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Trail Details") },
+                title = { Text(stringResource(R.string.trail_details)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.back))
                     }
                 }
             )
@@ -90,7 +92,7 @@ fun TrailDetailsScreen(
                         ) {
                             Text(text = errorMessage!!, color = Error)
                             Button(onClick = { viewModel.refresh() }) {
-                                Text("Retry")
+                                Text(stringResource(R.string.retry))
                             }
                         }
                     }
@@ -206,25 +208,25 @@ fun TrailDetailsContent(
                 )
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Stats", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.stats), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        StatItem(Icons.Default.Terrain, "Distance", "${trail.distanceKm} km")
+                        StatItem(Icons.Default.Terrain, stringResource(R.string.distance), "${trail.distanceKm} km")
                         Divider(
                             modifier = Modifier
                                 .height(50.dp)
                                 .width(1.dp)
                         )
-                        StatItem(Icons.Default.TrendingUp, "Elevation", "${trail.elevationM} m")
+                        StatItem(Icons.Default.TrendingUp, stringResource(R.string.elevation), "${trail.elevationM} m")
                         Divider(
                             modifier = Modifier
                                 .height(50.dp)
                                 .width(1.dp)
                         )
-                        StatItem(Icons.Default.Star, "Rating", trail.rating.toString())
+                        StatItem(Icons.Default.Star, stringResource(R.string.rating), trail.rating.toString())
                     }
                 }
             }
@@ -294,7 +296,7 @@ fun TrailDetailsContent(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Description", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.description), style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = desc,
@@ -315,7 +317,7 @@ fun TrailDetailsContent(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Segments", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.segments), style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         trail.segments.forEach { segment ->
                             SegmentItem(segment)
@@ -401,9 +403,9 @@ fun ReviewsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Community Reviews", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.community_reviews), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${mockReviews.size} reviews",
+                        stringResource(R.string.reviews_count, mockReviews.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -411,7 +413,7 @@ fun ReviewsSection(
                 Button(onClick = onAddReview) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Add Review")
+                    Text(stringResource(R.string.add_review))
                 }
             }
             
@@ -442,12 +444,12 @@ fun ReviewsSection(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "No reviews yet",
+                        stringResource(R.string.no_reviews_yet),
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
                     Text(
-                        "Be the first to share your experience!",
+                        stringResource(R.string.be_first_to_share),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -659,10 +661,10 @@ fun WeatherCard(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Weather Conditions", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.weather_conditions), style = MaterialTheme.typography.titleMedium)
                 }
                 IconButton(onClick = onRefresh, enabled = !isLoading) {
-                    Icon(Icons.Default.Refresh, "Refresh weather")
+                    Icon(Icons.Default.Refresh, stringResource(R.string.refresh_weather))
                 }
             }
             
@@ -687,7 +689,7 @@ fun WeatherCard(
                         color = TextSecondary
                     )
                     Text(
-                        "Feels like ${current.feelsLike.toInt()}°C",
+                        stringResource(R.string.feels_like, current.feelsLike.toInt()),
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
@@ -708,12 +710,12 @@ fun WeatherCard(
             ) {
                 WeatherDetailItem(
                     icon = Icons.Default.Water,
-                    label = "Humidity",
+                    label = stringResource(R.string.humidity),
                     value = "${current.humidity}%"
                 )
                 WeatherDetailItem(
                     icon = Icons.Default.Air,
-                    label = "Wind",
+                    label = stringResource(R.string.wind),
                     value = "${current.windSpeed.toInt()} km/h"
                 )
             }
@@ -743,7 +745,7 @@ fun WeatherCard(
                         modifier = Modifier.size(20.dp)
                     )
                     Text(
-                        "Trail Conditions: ${weatherForecast.trailSafetyRating.displayName}",
+                        stringResource(R.string.trail_safety_rating) + ": ${weatherForecast.trailSafetyRating.displayName}",
                         style = MaterialTheme.typography.titleSmall,
                         color = safetyColor
                     )
@@ -755,7 +757,7 @@ fun WeatherCard(
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 Text(
-                    "3-Day Forecast",
+                    stringResource(R.string.three_day_forecast),
                     style = MaterialTheme.typography.titleSmall,
                     color = TextSecondary
                 )
@@ -774,7 +776,7 @@ fun WeatherCard(
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            "${day.tempMin.toInt()}° / ${day.tempMax.toInt()}°",
+                            stringResource(R.string.temp_range, day.tempMin.toInt(), day.tempMax.toInt()),
                             style = MaterialTheme.typography.bodyMedium,
                             color = TextSecondary
                         )

@@ -7,6 +7,7 @@ import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.WeatherApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.time.LocalDate
@@ -22,7 +23,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class WeatherRepository @Inject constructor(
-    private val weatherApiService: WeatherApiService
+    private val weatherApiService: WeatherApiService,
+    private val preferencesRepository: PreferencesRepository
 ) {
     
     companion object {
@@ -37,12 +39,16 @@ class WeatherRepository @Inject constructor(
         emit(NetworkResult.Loading)
         
         try {
+            // Get language code from preferences
+            val languageCode = preferencesRepository.userPreferencesFlow.first().language.code
+            
             // Fetch forecast (first day contains current conditions)
             val forecastResponse = weatherApiService.getForecast(
                 apiKey = API_KEY,
                 latitude = latitude,
                 longitude = longitude,
-                days = 1
+                days = 1,
+                languageCode = languageCode
             )
             
             if (forecastResponse.isSuccessful && forecastResponse.body() != null) {
@@ -73,12 +79,16 @@ class WeatherRepository @Inject constructor(
         emit(NetworkResult.Loading)
         
         try {
+            // Get language code from preferences
+            val languageCode = preferencesRepository.userPreferencesFlow.first().language.code
+            
             // Fetch forecast (includes current day)
             val forecastResponse = weatherApiService.getForecast(
                 apiKey = API_KEY,
                 latitude = latitude,
                 longitude = longitude,
-                days = 5
+                days = 5,
+                languageCode = languageCode
             )
             
             if (forecastResponse.isSuccessful && forecastResponse.body() != null) {

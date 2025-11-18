@@ -1,6 +1,7 @@
 package com.trailguide.android.data.repository
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
@@ -68,6 +69,9 @@ class PreferencesRepository @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[LANGUAGE_KEY] = language.code
         }
+        // Also update SharedPreferences cache for synchronous access in attachBaseContext
+        val sharedPrefs = context.getSharedPreferences("user_preferences", Context.MODE_PRIVATE)
+        sharedPrefs.edit().putString("language", language.code).apply()
     }
     
     /**

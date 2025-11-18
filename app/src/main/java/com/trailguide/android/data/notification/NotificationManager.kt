@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.trailguide.android.R
 import com.trailguide.android.data.model.SafetyRating
 import com.trailguide.android.data.model.Weather
 import com.trailguide.android.presentation.MainActivity
@@ -33,10 +34,10 @@ object TrailNotificationManager {
             // Daily Weather Channel
             val dailyWeatherChannel = NotificationChannel(
                 DAILY_WEATHER_CHANNEL_ID,
-                "Daily Weather",
+                context.getString(R.string.daily_weather_channel),
                 AndroidNotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Daily weather updates for your location"
+                description = context.getString(R.string.daily_weather_channel_description)
                 enableVibration(false)
                 enableLights(true)
             }
@@ -44,10 +45,10 @@ object TrailNotificationManager {
             // Safety Alerts Channel
             val safetyAlertsChannel = NotificationChannel(
                 SAFETY_ALERTS_CHANNEL_ID,
-                "Safety Alerts",
+                context.getString(R.string.safety_alerts_channel),
                 AndroidNotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Weather safety alerts for dangerous conditions"
+                description = context.getString(R.string.safety_alerts_channel_description)
                 enableVibration(true)
                 enableLights(true)
             }
@@ -87,11 +88,13 @@ object TrailNotificationManager {
         )
         
         // Build notification content
-        val title = "Good Morning! Today's Weather"
-        val body = buildString {
-            append("${weather.temperature.toInt()}°C - ${weather.description}\n")
-            append("Safety: ${safetyRating.displayName}")
-        }
+        val title = context.getString(R.string.good_morning_todays_weather)
+        val body = context.getString(
+            R.string.weather_notification_body,
+            weather.temperature.toInt(),
+            weather.description,
+            safetyRating.displayName
+        )
         
         val notification = NotificationCompat.Builder(context, DAILY_WEATHER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -126,18 +129,18 @@ object TrailNotificationManager {
         // Build alert message based on dangerous conditions
         val alertMessage = buildString {
             when {
-                weather.windSpeed > 50 -> append("⚠️ High winds detected (${weather.windSpeed.toInt()} km/h). ")
-                weather.condition.name == "THUNDERSTORM" -> append("⚠️ Thunderstorm warning. ")
-                weather.condition.name == "HEAVY_RAIN" -> append("⚠️ Heavy rain expected. ")
-                else -> append("⚠️ Dangerous weather conditions. ")
+                weather.windSpeed > 50 -> append(context.getString(R.string.high_winds_detected, weather.windSpeed.toInt()))
+                weather.condition.name == "THUNDERSTORM" -> append(context.getString(R.string.thunderstorm_warning))
+                weather.condition.name == "HEAVY_RAIN" -> append(context.getString(R.string.heavy_rain_expected))
+                else -> append(context.getString(R.string.dangerous_weather_conditions))
             }
-            append("Avoid hiking trails today. ")
-            append("Current: ${weather.temperature.toInt()}°C, ${weather.description}")
+            append(context.getString(R.string.avoid_hiking_trails_today))
+            append(context.getString(R.string.current_weather, weather.temperature.toInt(), weather.description))
         }
         
         val notification = NotificationCompat.Builder(context, SAFETY_ALERTS_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("⚠️ Weather Safety Alert")
+            .setContentTitle(context.getString(R.string.weather_safety_alert))
             .setContentText(alertMessage)
             .setStyle(NotificationCompat.BigTextStyle().bigText(alertMessage))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
