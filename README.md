@@ -1,5 +1,9 @@
-# TrailGuide 🥾 - Android Hiking Companion (ST10294003, ST10268524)
-**A comprehensive Android application demonstrating modern mobile development practices, authentication systems, and real-world API integration.**
+# TrailGuide - Android Hiking Companion
+
+**Student Numbers:** ST10294003, ST10268524
+
+A comprehensive Android application demonstrating modern mobile development practices, authentication systems, and real-world API integration.
+
 <div align="left">
 
 [![Android](https://img.shields.io/badge/Android-8.0+-green.svg)](https://android.com)
@@ -9,20 +13,37 @@
 
 </div>
 
-# 
-### Watch the Demo Video
-[![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/SYZOXxKP7lE)
-### Watch REST API Server Video
-[![TrailGuide Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/CE7YiDrlH50)
+## Table of Contents
 
+1. [Project Overview](#project-overview)
+2. [Rubric Compliance & Features](#rubric-compliance--features-demonstrated)
+3. [Screenshots](#screenshots)
+4. [Quick Start Guide](#quick-start-for-lecturers)
+5. [Architecture & Technical Implementation](#architecture--technical-implementation)
+6. [Testing & Quality Assurance](#testing--quality-assurance)
+7. [Feature Demonstration Guide](#feature-demonstration-guide)
+8. [Development & Deployment](#development--deployment)
+9. [Project Metrics](#project-metrics)
+10. [Educational Value](#educational-value)
+11. [Code Review Points](#code-review-points)
+12. [Additional Documentation](#additional-documentation)
+13. [Comprehensive Project Report](#comprehensive-project-report)
+    - [Purpose of the Application](#1-purpose-of-the-application)
+    - [Design Considerations](#2-design-considerations)
+    - [Utilization of GitHub and GitHub Actions](#3-utilization-of-github-and-github-actions)
+    - [Technical Implementation Summary](#4-technical-implementation-summary)
+    - [Project Statistics and Metrics](#5-project-statistics-and-metrics)
+    - [Conclusion](#6-conclusion)
+14. [Support & Contact](#support--contact)
 
 ---
 
-## 📋 Project Overview
+## Project Overview
 
 TrailGuide is a comprehensive hiking companion app designed for outdoor enthusiasts who want to discover, plan, and track their hiking adventures. Built with modern Android development practices, it combines beautiful UI design with powerful functionality to create an exceptional user experience.
 
-### 🎯 **Core Purpose**
+### Core Purpose
+
 - **Trail Discovery**: Find hiking trails near you with detailed information
 - **Interactive Mapping**: Visualize trails with Google Maps integration
 - **Personal Management**: Save favorites and track your hiking progress
@@ -31,40 +52,44 @@ TrailGuide is a comprehensive hiking companion app designed for outdoor enthusia
 
 ---
 
-## 🎯 Rubric Compliance & Features Demonstrated
+## Rubric Compliance & Features Demonstrated
 
 ### Core Application Features
-- ✅ **User Authentication** - Google Sign-In, Email/Password, Biometric Login
-- ✅ **Trail Discovery** - Browse and search hiking trails
-- ✅ **Interactive Maps** - Google Maps integration with trail routes
-- ✅ **Favorites System** - Save and manage favorite trails
-- ✅ **Offline Capabilities** - Download trails for offline use
+
+- **User Authentication** - Google Sign-In, Email/Password, Biometric Login
+- **Trail Discovery** - Browse and search hiking trails
+- **Interactive Maps** - Google Maps integration with trail routes
+- **Favorites System** - Save and manage favorite trails
+- **Offline Capabilities** - Download trails for offline use
 
 ### Technical Implementation
-- ✅ **MVVM Architecture** - Clean separation of concerns
-- ✅ **Jetpack Compose** - Modern declarative UI
-- ✅ **Dependency Injection** - Hilt implementation
-- ✅ **Repository Pattern** - Data layer abstraction
-- ✅ **RESTful API** - Custom Node.js backend
-- ✅ **Database Integration** - Supabase PostgreSQL
-- ✅ **Authentication Flow** - Multiple auth methods
-- ✅ **CI/CD Pipeline** - Automated testing and deployment
-- ✅ **Unit Testing** - Comprehensive test coverage
+
+- **MVVM Architecture** - Clean separation of concerns
+- **Jetpack Compose** - Modern declarative UI
+- **Dependency Injection** - Hilt implementation
+- **Repository Pattern** - Data layer abstraction
+- **RESTful API** - Custom Node.js backend
+- **Database Integration** - Supabase PostgreSQL
+- **Authentication Flow** - Multiple auth methods
+- **CI/CD Pipeline** - Automated testing and deployment
+- **Unit Testing** - Comprehensive test coverage
 
 ---
 
-## 📱 App Screenshots
+## Screenshots
+
+### Application Screenshots
 
 <div align="center">
 
-### Trail Discovery & Mapping
+#### Trail Discovery & Mapping
 <img src="screenshots/trails.png" alt="Trails List" width="200"/>
 <img src="screenshots/map.png" alt="Interactive Map" width="200"/>
 <img src="screenshots/trail-details.png" alt="Trail Details" width="200"/>
 
 *Browse trails, explore interactive maps, and get detailed trail information*
 
-### Personal Features
+#### Personal Features
 <img src="screenshots/favourite.png" alt="Favorites" width="200"/>
 <img src="screenshots/download.png" alt="Offline Downloads" width="200"/>
 <img src="screenshots/profile.png" alt="User Profile" width="200"/>
@@ -73,19 +98,27 @@ TrailGuide is a comprehensive hiking companion app designed for outdoor enthusia
 
 </div>
 
-## 📱 REST API Server Screenshots
+### REST API Server Screenshots
+
 <div align="center">
 <img src="screenshots/TrailGuide_REST_API_Server.webp" alt="Backend API" width="200"/>
 <img src="screenshots/renderlogs.png" alt="Render Deployment Logs" width="200"/>
 <img src="screenshots/supabase.png" alt="Supabase Database" width="200"/>
-   </div>
+</div>
 
 *Backend infrastructure: REST API server, deployment logs, and database management*
+
+### Demo Videos
+
+- [TrailGuide Demo Video](https://youtu.be/SYZOXxKP7lE)
+- [REST API Server Demo Video](https://youtu.be/CE7YiDrlH50)
+
 ---
 
-## 🚀 Quick Start for Lecturers
+## Quick Start for Lecturers
 
 ### Prerequisites
+
 - **Android Studio** (latest version)
 - **Node.js** 18.x or higher
 - **Java 17** or higher
@@ -101,9 +134,9 @@ cd TrailGuide
 # The project includes all necessary configuration files
 ```
 
-### Step 2: Configure API Keys (10 minutes) 
+### Step 2: Configure API Keys (10 minutes)
 
-Create `local.properties` in the project root: (this is the actual keys provided for testing)
+Create `local.properties` in the project root (this is the actual keys provided for testing):
 
 ```properties
 # Android SDK Path (adjust for your system)
@@ -176,7 +209,7 @@ Launch the app and test the following features:
 
 ---
 
-## 🏗️ Architecture & Technical Implementation
+## Architecture & Technical Implementation
 
 ### Android App Architecture
 
@@ -243,7 +276,7 @@ Launch the app and test the following features:
 
 ---
 
-## 🧪 Testing & Quality Assurance
+## Testing & Quality Assurance
 
 ### Automated Testing
 
@@ -264,11 +297,11 @@ The project includes comprehensive testing:
 ### CI/CD Pipeline
 
 GitHub Actions workflow demonstrates:
-- ✅ **Automated Testing** - Runs on every push/PR
-- ✅ **Build Verification** - Ensures app compiles
-- ✅ **Lint Checks** - Code quality validation
-- ✅ **Artifact Generation** - APK and reports
-- ✅ **Modern Actions** - Updated to latest versions
+- **Automated Testing** - Runs on every push/PR
+- **Build Verification** - Ensures app compiles
+- **Lint Checks** - Code quality validation
+- **Artifact Generation** - APK and reports
+- **Modern Actions** - Updated to latest versions
 
 ### Code Quality
 
@@ -280,10 +313,12 @@ GitHub Actions workflow demonstrates:
 
 ---
 
-## 📱 Feature Demonstration Guide
+## Feature Demonstration Guide
 
 ### 1. Authentication System
+
 **Location**: Login/Register screens
+
 **Demonstrates**:
 - Multiple authentication methods
 - Secure credential storage
@@ -295,7 +330,9 @@ GitHub Actions workflow demonstrates:
 3. Test Google Sign-In (if configured)
 
 ### 2. Trail Management
+
 **Location**: Trails screen, Trail Details
+
 **Demonstrates**:
 - RESTful API integration
 - MVVM data flow
@@ -310,7 +347,9 @@ GitHub Actions workflow demonstrates:
 5. Add/remove favorites
 
 ### 3. Favorites System
+
 **Location**: Favorites screen
+
 **Demonstrates**:
 - Database operations
 - State synchronization
@@ -323,7 +362,9 @@ GitHub Actions workflow demonstrates:
 4. Verify sync with Trails screen
 
 ### 4. Maps Integration
+
 **Location**: Trail Details, Map screen
+
 **Demonstrates**:
 - Google Maps SDK integration
 - Location services
@@ -335,7 +376,9 @@ GitHub Actions workflow demonstrates:
 3. Test location permissions
 
 ### 5. Offline Capabilities
+
 **Location**: Downloads screen
+
 **Demonstrates**:
 - Local data storage
 - Offline-first architecture
@@ -348,7 +391,7 @@ GitHub Actions workflow demonstrates:
 
 ---
 
-## 🔧 Development & Deployment
+## Development & Deployment
 
 ### Local Development
 
@@ -373,9 +416,10 @@ The project demonstrates production-ready deployment:
 
 ---
 
-## 📊 Project Metrics
+## Project Metrics
 
 ### Code Statistics
+
 - **Lines of Code**: ~15,000+ lines
 - **Kotlin Files**: 50+ files
 - **Test Coverage**: 80%+ for core functionality
@@ -383,36 +427,41 @@ The project demonstrates production-ready deployment:
 - **UI Screens**: 8+ Compose screens
 
 ### Architecture Compliance
-- ✅ **SOLID Principles** - Applied throughout
-- ✅ **Clean Architecture** - Clear layer separation
-- ✅ **Design Patterns** - Repository, Observer, Factory
-- ✅ **Android Best Practices** - Lifecycle-aware components
-- ✅ **Security Standards** - Secure authentication and data storage
+
+- **SOLID Principles** - Applied throughout
+- **Clean Architecture** - Clear layer separation
+- **Design Patterns** - Repository, Observer, Factory
+- **Android Best Practices** - Lifecycle-aware components
+- **Security Standards** - Secure authentication and data storage
 
 ---
 
-## 🎓 Educational Value
+## Educational Value
 
 This project demonstrates mastery of:
 
 ### Mobile Development
+
 - Modern Android development with Kotlin
 - Jetpack Compose UI framework
 - Android architecture components
 
 ### Backend Development
+
 - RESTful API design and implementation
 - Database design and management
 - Authentication and authorization
 - API security best practices
 
 ### DevOps & CI/CD
+
 - Automated testing and deployment
 - GitHub Actions workflow
 - Code quality assurance
 - Version control best practices
 
 ### Software Engineering
+
 - Clean architecture principles
 - Design patterns implementation
 - Testing strategies
@@ -420,7 +469,7 @@ This project demonstrates mastery of:
 
 ---
 
-## 🔍 Code Review Points
+## Code Review Points
 
 ### Key Areas to Evaluate
 
@@ -450,14 +499,14 @@ This project demonstrates mastery of:
 
 ---
 
-## 📄 Additional Documentation
+## Additional Documentation
 
 - **API Documentation**: `api-proxy/README.md`
 - **Setup Guide**: `SETUP_GUIDE.md`
 
 ---
 
-## 📊 Comprehensive Project Report
+## Comprehensive Project Report
 
 ### 1. Purpose of the Application
 
@@ -545,6 +594,7 @@ The application was designed with careful consideration of user experience, tech
 #### 2.2 Architecture Design
 
 **MVVM (Model-View-ViewModel) Pattern**
+
 ```
 ┌─────────────────────────────────────────┐
 │           Presentation Layer            │
@@ -595,6 +645,7 @@ The application was designed with careful consideration of user experience, tech
 - Automatic retry mechanisms
 
 **Data Synchronization Flow**
+
 ```
 User Action (Offline)
     ↓
@@ -680,6 +731,7 @@ GitHub serves as the central hub for version control, collaboration, and continu
 #### 3.1 Version Control with GitHub
 
 **Repository Structure**
+
 ```
 TrailGuide/
 ├── app/                    # Android application code
@@ -718,6 +770,7 @@ The project implements a comprehensive CI/CD pipeline using GitHub Actions to au
 The CI/CD pipeline is defined in `.github/workflows/android-ci.yml` and consists of two main jobs:
 
 **Job 1: Build**
+
 ```yaml
 Triggers:
   - Push to main/develop branches
@@ -734,6 +787,7 @@ Steps:
 ```
 
 **Job 2: Test**
+
 ```yaml
 Triggers:
   - Same as Build job
@@ -774,6 +828,7 @@ Steps:
 #### 3.4 GitHub Actions Workflow Details
 
 **Environment Setup**
+
 ```yaml
 - JDK 17 with Temurin distribution
 - Gradle caching for faster builds
@@ -781,6 +836,7 @@ Steps:
 ```
 
 **Secret Management**
+
 The workflow uses GitHub Secrets for:
 - `SUPABASE_URL`: Database connection URL
 - `SUPABASE_KEY`: Database API key
@@ -798,6 +854,7 @@ The workflow uses GitHub Secrets for:
 #### 3.5 GitHub Features Utilization
 
 **Pull Request Workflow**
+
 1. Feature branch created from develop
 2. Changes committed and pushed
 3. Pull request created with description
@@ -921,6 +978,7 @@ The workflow uses GitHub Secrets for:
 ### 5. Project Statistics and Metrics
 
 #### Code Metrics
+
 - **Total Lines of Code**: ~15,000+ lines
 - **Kotlin Files**: 50+ files
 - **Java Files**: 0 (100% Kotlin)
@@ -929,13 +987,15 @@ The workflow uses GitHub Secrets for:
 - **UI Screens**: 8+ Compose screens
 
 #### Architecture Compliance
-- ✅ SOLID Principles
-- ✅ Clean Architecture
-- ✅ Design Patterns (Repository, Observer, Factory)
-- ✅ Android Best Practices
-- ✅ Security Standards
+
+- SOLID Principles
+- Clean Architecture
+- Design Patterns (Repository, Observer, Factory)
+- Android Best Practices
+- Security Standards
 
 #### Test Coverage
+
 - **Unit Tests**: 80%+ coverage
 - **Integration Tests**: Core flows covered
 - **UI Tests**: Critical user flows
@@ -963,7 +1023,7 @@ This project serves as both a functional application for users and a comprehensi
 
 ---
 
-## 📞 Support & Contact
+## Support & Contact
 
 For technical questions or issues:
 - **GitHub Issues**: [Create an issue](https://github.com/ShawnDuPreez/TrailGuide/issues)
@@ -976,8 +1036,8 @@ For technical questions or issues:
 
 **TrailGuide - Demonstrating Modern Android Development Excellence**
 
-*Built with ❤️ using Kotlin, Jetpack Compose, and modern Android architecture*
+*Built with Kotlin, Jetpack Compose, and modern Android architecture*
 
-[⬆ Back to Top](#trailguide----android-hiking-companion)
+[Back to Top](#trailguide---android-hiking-companion)
 
 </div>
