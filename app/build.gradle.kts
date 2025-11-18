@@ -41,6 +41,7 @@ android {
         buildConfigField("String", "SUPABASE_KEY", "\"${localProperties.getProperty("SUPABASE_KEY") ?: ""}\"")
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties.getProperty("OPENWEATHER_API_KEY") ?: ""}\"")
         buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"${localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_WEATHER_API_KEY", "\"${localProperties.getProperty("GOOGLE_WEATHER_API_KEY") ?: ""}\"")
         buildConfigField("String", "OPENROUTE_API_KEY", "\"${localProperties.getProperty("OPENROUTE_API_KEY") ?: ""}\"")
         
         // Add Maps API key to manifest
@@ -126,6 +127,8 @@ dependencies {
     implementation("com.google.dagger:hilt-android:2.48")
     ksp("com.google.dagger:hilt-compiler:2.48")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    ksp("androidx.hilt:hilt-compiler:1.1.0")
 
     // Supabase Authentication & Client
     implementation("io.github.jan-tennert.supabase:postgrest-kt:2.0.0")
@@ -155,6 +158,9 @@ dependencies {
 
     // Biometric authentication
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
+
+    // WorkManager for scheduled notifications
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

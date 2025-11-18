@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.trailguide.android.data.model.Language
 import com.trailguide.android.data.model.User
 import com.trailguide.android.data.model.UserPreferences
+import com.trailguide.android.data.notification.NotificationScheduler
 import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.data.repository.PreferencesRepository
@@ -20,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val preferencesRepository: PreferencesRepository
+    private val preferencesRepository: PreferencesRepository,
+    private val notificationScheduler: NotificationScheduler
 ) : ViewModel() {
     
     // User authentication state
@@ -38,6 +40,18 @@ class ProfileViewModel @Inject constructor(
             initialValue = UserPreferences()
         )
     
+    // Notification time state
+    val notificationTime: StateFlow<Pair<Int, Int>> = preferencesRepository.notificationTimeFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = Pair(6, 0)
+        )
+    
+    // Time picker dialog state
+    private val _showTimePickerDialog = MutableStateFlow(false)
+    val showTimePickerDialog: StateFlow<Boolean> = _showTimePickerDialog.asStateFlow()
+    
     // UI state
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -50,6 +64,16 @@ class ProfileViewModel @Inject constructor(
     
     init {
         checkAuthState()
+        // Reschedule notifications if they were previously enabled
+        // (WorkManager tasks don't survive app uninstall/reinstall)
+        viewModelScope.launch {
+            userPreferences.first().let { preferences ->
+                if (preferences.notificationsEnabled) {
+                    val (hour, minute) = preferencesRepository.getNotificationTime()
+                    notificationScheduler.scheduleDailyNotifications(hour, minute)
+                }
+            }
+        }
     }
     
     /**
@@ -230,10 +254,67 @@ class ProfileViewModel @Inject constructor(
     
     /**
      * Update notifications enabled preference.
+     * If enabling, shows time picker dialog for user to select time.
      */
     fun setNotificationsEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            preferencesRepository.setNotificationsEnabled(enabled)
+            if (enabled) {
+                // Show time picker dialog - user will confirm time in dialog
+                // Don't save enabled state yet - wait for time selection
+                showTimePicker()
+            } else {
+                // Disable immediately
+                preferencesRepository.setNotificationsEnabled(false)
+                notificationScheduler.cancelDailyNotifications()
+            }
+        }
+    }
+    
+    /**
+     * Enable notifications with selected time.
+     * Called from time picker dialog when user confirms time.
+     */
+    fun enableNotificationsWithTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            // Save time and enable notifications
+            preferencesRepository.setNotificationTime(hour, minute)
+            preferencesRepository.setNotificationsEnabled(true)
+            
+            // Schedule notifications with selected time
+            notificationScheduler.scheduleDailyNotifications(hour, minute)
+            
+            // Hide time picker
+            hideTimePicker()
+        }
+    }
+    
+    /**
+     * Show time picker dialog.
+     */
+    fun showTimePicker() {
+        _showTimePickerDialog.value = true
+    }
+    
+    /**
+     * Hide time picker dialog.
+     */
+    fun hideTimePicker() {
+        _showTimePickerDialog.value = false
+    }
+    
+    /**
+     * Set notification time and reschedule notifications.
+     */
+    fun setNotificationTime(hour: Int, minute: Int) {
+        viewModelScope.launch {
+            // Save time to DataStore
+            preferencesRepository.setNotificationTime(hour, minute)
+            
+            // If notifications are enabled, reschedule with new time
+            val preferences = userPreferences.value
+            if (preferences.notificationsEnabled) {
+                notificationScheduler.scheduleDailyNotifications(hour, minute)
+            }
         }
     }
     
@@ -249,5 +330,12 @@ class ProfileViewModel @Inject constructor(
      */
     fun clearSuccessMessage() {
         _successMessage.value = null
+    }
+    
+    /**
+     * Test notification immediately (for testing).
+     */
+    fun testNotificationNow() {
+        notificationScheduler.testNotificationNow()
     }
 }

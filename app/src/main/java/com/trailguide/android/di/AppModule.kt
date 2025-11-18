@@ -10,7 +10,9 @@ import com.trailguide.android.data.remote.ApiClient
 import com.trailguide.android.data.remote.AuthApiService
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.remote.WeatherApiService
+import com.trailguide.android.data.notification.NotificationScheduler
 import com.trailguide.android.data.repository.AuthRepository
+import com.trailguide.android.data.repository.LocationRepository
 import com.trailguide.android.data.repository.PreferencesRepository
 import com.trailguide.android.data.repository.TrailRepository
 import com.trailguide.android.data.repository.WeatherRepository
@@ -163,14 +165,15 @@ object AppModule {
         return PreferencesRepository(context)
     }
     
-    /**
+        /**
      * Provides Weather API service.
+     * Uses Google Weather API v1 endpoint
      */
     @Provides
     @Singleton
     fun provideWeatherApiService(): WeatherApiService {
         return Retrofit.Builder()
-            .baseUrl("https://api.openweathermap.org/data/2.5/")
+            .baseUrl("https://weather.googleapis.com/v1/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(WeatherApiService::class.java)
@@ -185,5 +188,27 @@ object AppModule {
         weatherApiService: WeatherApiService
     ): WeatherRepository {
         return WeatherRepository(weatherApiService)
+    }
+    
+    /**
+     * Provides Location Repository.
+     */
+    @Provides
+    @Singleton
+    fun provideLocationRepository(
+        @ApplicationContext context: Context
+    ): LocationRepository {
+        return LocationRepository(context)
+    }
+    
+    /**
+     * Provides Notification Scheduler.
+     */
+    @Provides
+    @Singleton
+    fun provideNotificationScheduler(
+        @ApplicationContext context: Context
+    ): NotificationScheduler {
+        return NotificationScheduler(context)
     }
 }

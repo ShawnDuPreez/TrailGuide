@@ -1,5 +1,7 @@
 package com.trailguide.android.presentation.screens
 
+import android.Manifest
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -8,15 +10,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.trailguide.android.BuildConfig
 import com.trailguide.android.data.model.Language
+import com.trailguide.android.data.notification.TrailNotificationManager
 import com.trailguide.android.presentation.theme.*
 import com.trailguide.android.presentation.viewmodel.ProfileViewModel
 
@@ -33,8 +42,27 @@ fun ProfileScreen(
     val currentUser by viewModel.currentUser.collectAsState()
     val isSignedIn by viewModel.isSignedIn.collectAsState()
     val userPreferences by viewModel.userPreferences.collectAsState()
+    val notificationTime by viewModel.notificationTime.collectAsState()
+    val showTimePickerDialog by viewModel.showTimePickerDialog.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
+    
+    // Notification permission launcher (Android 13+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, show time picker
+            viewModel.setNotificationsEnabled(true)
+        } else {
+            // Permission denied, keep notifications disabled
+            viewModel.hideTimePicker()
+        }
+    }
+    
+    // Check if notification permission is needed (Android 13+)
+    val needsNotificationPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !TrailNotificationManager.canPostNotifications(context)
     
     Column(
         modifier = Modifier
@@ -317,10 +345,119 @@ fun ProfileScreen(
                     Text("Trail reminders & safety alerts", color = TextSecondary)
                     Switch(
                         checked = userPreferences.notificationsEnabled,
-                        onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                // Check if notification permission is needed (Android 13+)
+                                if (needsNotificationPermission) {
+                                    // Request notification permission first
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    // Permission already granted or not needed, show time picker
+                                    viewModel.setNotificationsEnabled(true)
+                                }
+                            } else {
+                                // Disable notifications
+                                viewModel.setNotificationsEnabled(false)
+                            }
+                        }
                     )
                 }
+                
+                // Show notification time and edit button if enabled
+                if (userPreferences.notificationsEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Notifications at ${String.format("%02d:%02d", notificationTime.first, notificationTime.second)}",
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            // Test notification button (for testing)
+                            IconButton(onClick = { viewModel.testNotificationNow() }) {
+                                Icon(Icons.Default.NotificationsActive, contentDescription = "Test notification")
+                            }
+                            IconButton(onClick = { viewModel.showTimePicker() }) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit notification time")
+                            }
+                        }
+                    }
+                }
+                
+                // Test notification button (always visible for testing)
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = { viewModel.testNotificationNow() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.NotificationsActive, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Test Notification Now")
+                }
             }
+        }
+        
+        // Time Picker Dialog
+        if (showTimePickerDialog) {
+            val timePickerState = rememberTimePickerState(
+                initialHour = notificationTime.first,
+                initialMinute = notificationTime.second,
+                is24Hour = true
+            )
+            
+            AlertDialog(
+                onDismissRequest = { viewModel.hideTimePicker() },
+                title = { Text("Select Notification Time") },
+                text = {
+                    TimePicker(
+                        state = timePickerState,
+                        colors = TimePickerDefaults.colors(
+                            clockDialSelectedContentColor = MaterialTheme.colorScheme.primary,
+                            clockDialColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectorColor = MaterialTheme.colorScheme.primary,
+                            periodSelectorBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val hour = timePickerState.hour
+                            val minute = timePickerState.minute
+                            
+                            // Check if notifications are already enabled
+                            if (userPreferences.notificationsEnabled) {
+                                // Just update the time
+                                viewModel.setNotificationTime(hour, minute)
+                                viewModel.hideTimePicker()
+                            } else {
+                                // Enable notifications with selected time
+                                if (needsNotificationPermission) {
+                                    // Request permission first, then enable
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    // Store time temporarily - will be applied after permission granted
+                                    viewModel.setNotificationTime(hour, minute)
+                                    viewModel.hideTimePicker()
+                                } else {
+                                    // Enable immediately
+                                    viewModel.enableNotificationsWithTime(hour, minute)
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Confirm")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.hideTimePicker() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
         
         // Language selection card

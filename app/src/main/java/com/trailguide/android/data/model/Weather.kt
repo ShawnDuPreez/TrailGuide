@@ -66,6 +66,23 @@ enum class WeatherCondition(val displayName: String, val icon: String) {
                 else -> CLEAR
             }
         }
+        
+        /**
+         * Map Google Weather API condition type to WeatherCondition enum.
+         */
+        fun fromGoogleType(type: String): WeatherCondition {
+            return when (type.uppercase()) {
+                "CLEAR" -> CLEAR
+                "PARTLY_CLOUDY" -> PARTLY_CLOUDY
+                "CLOUDY" -> CLOUDY
+                "RAIN", "LIGHT_RAIN", "RAIN_SHOWERS", "SCATTERED_SHOWERS" -> RAIN
+                "HEAVY_RAIN" -> HEAVY_RAIN
+                "THUNDERSTORM" -> THUNDERSTORM
+                "SNOW" -> SNOW
+                "FOG" -> FOG
+                else -> CLEAR // Default fallback
+            }
+        }
     }
 }
 
