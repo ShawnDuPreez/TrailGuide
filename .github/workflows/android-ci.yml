@@ -19,7 +19,10 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+    
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
@@ -40,6 +43,9 @@ jobs:
         echo "SUPABASE_KEY=dummy-key" >> local.properties
         echo "GOOGLE_MAPS_API_KEY=dummy-key" >> local.properties
         echo "OPENWEATHER_API_KEY=dummy-key" >> local.properties
+        echo "GOOGLE_WEATHER_API_KEY=dummy-key" >> local.properties
+        echo "OPENROUTE_API_KEY=dummy-key" >> local.properties
+        echo "GOOGLE_TRANSLATE_API_KEY=dummy-key" >> local.properties
         
     - name: Run unit tests
       run: ./gradlew test --stacktrace --continue
@@ -77,7 +83,10 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+    
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
@@ -98,6 +107,9 @@ jobs:
         echo "SUPABASE_KEY=dummy-key" >> local.properties
         echo "GOOGLE_MAPS_API_KEY=dummy-key" >> local.properties
         echo "OPENWEATHER_API_KEY=dummy-key" >> local.properties
+        echo "GOOGLE_WEATHER_API_KEY=dummy-key" >> local.properties
+        echo "OPENROUTE_API_KEY=dummy-key" >> local.properties
+        echo "GOOGLE_TRANSLATE_API_KEY=dummy-key" >> local.properties
         
     - name: Build debug APK
       run: ./gradlew assembleDebug --stacktrace
@@ -120,7 +132,10 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+    
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
@@ -131,6 +146,9 @@ jobs:
         echo "SUPABASE_KEY=dummy-key" >> local.properties
         echo "GOOGLE_MAPS_API_KEY=dummy-key" >> local.properties
         echo "OPENWEATHER_API_KEY=dummy-key" >> local.properties
+        echo "GOOGLE_WEATHER_API_KEY=dummy-key" >> local.properties
+        echo "OPENROUTE_API_KEY=dummy-key" >> local.properties
+        echo "GOOGLE_TRANSLATE_API_KEY=dummy-key" >> local.properties
         
     - name: Run lint checks
       run: ./gradlew lint --stacktrace --continue
