@@ -187,23 +187,36 @@ class ProfileViewModel @Inject constructor(
     
     /**
      * Sign out current user from Supabase.
+     * This will clear all authentication state and redirect to login screen.
+     * Calls the repository to sign out, which will clear the Supabase session.
+     * AuthStateViewModel will detect the sign out and update the global state.
      */
     fun signOut() {
         viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            
+            // Sign out via repository - this clears Supabase session
             authRepository.signOut().collect { result ->
                 when (result) {
                     is NetworkResult.Loading -> {
                         _isLoading.value = true
                     }
                     is NetworkResult.Success -> {
+                        // Clear all local state
                         _currentUser.value = null
                         _isSignedIn.value = false
                         _isLoading.value = false
-                        _successMessage.value = "Signed out successfully!"
+                        _errorMessage.value = null
+                        _successMessage.value = null
                     }
                     is NetworkResult.Error -> {
+                        // Even on error, clear local state to ensure logout
+                        _currentUser.value = null
+                        _isSignedIn.value = false
                         _isLoading.value = false
-                        _errorMessage.value = result.message
+                        _errorMessage.value = null
+                        _successMessage.value = null
                     }
                 }
             }
@@ -221,10 +234,40 @@ class ProfileViewModel @Inject constructor(
     
     /**
      * Update biometrics enabled preference.
+     * If enabling, also stores biometric credentials (email/password for email users, session token for SSO users).
      */
-    fun setBiometricsEnabled(enabled: Boolean) {
+    fun setBiometricsEnabled(enabled: Boolean, activity: androidx.fragment.app.FragmentActivity? = null) {
         viewModelScope.launch {
             preferencesRepository.setBiometricsEnabled(enabled)
+            
+            if (enabled && activity != null) {
+                // Store biometric credentials when enabling
+                val currentUser = _currentUser.value
+                if (currentUser != null) {
+                    // Determine if user is SSO or email/password
+                    val isSSO = currentUser.provider == com.trailguide.android.data.model.AuthProvider.GOOGLE
+                    val password: String? = if (isSSO) null else null // For SSO, password is null
+                    
+                    authRepository.storeBiometricCredentials(activity, currentUser.email, password).collect { result ->
+                        when (result) {
+                            is NetworkResult.Success -> {
+                                _successMessage.value = "Biometric login enabled successfully!"
+                            }
+                            is NetworkResult.Error -> {
+                                _errorMessage.value = "Failed to enable biometric login: ${result.message}"
+                                // Revert the preference if storage failed
+                                preferencesRepository.setBiometricsEnabled(false)
+                            }
+                            is NetworkResult.Loading -> {
+                                // Loading state
+                            }
+                        }
+                    }
+                }
+            } else if (!enabled) {
+                // Clear biometric credentials when disabling
+                authRepository.clearBiometricCredentials()
+            }
         }
     }
     
