@@ -34,8 +34,7 @@ import com.trailguide.android.presentation.viewmodel.AuthViewModel
 fun LoginScreen(
     viewModel: AuthViewModel = hiltViewModel(),
     onNavigateToRegister: () -> Unit,
-    onLoginSuccess: (com.trailguide.android.data.model.User) -> Unit,
-    onGuestLogin: () -> Unit
+    onLoginSuccess: (com.trailguide.android.data.model.User) -> Unit
 ) {
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
@@ -50,7 +49,24 @@ fun LoginScreen(
     
     // Check biometric availability
     val isBiometricAvailable = remember { viewModel.isBiometricAvailable() }
-    val hasBiometricCredentials = remember { viewModel.hasBiometricCredentials() }
+    // Make hasBiometricCredentials reactive - check it dynamically instead of using remember
+    var hasBiometricCredentials by remember { mutableStateOf(viewModel.hasBiometricCredentials()) }
+    
+    // Refresh hasBiometricCredentials when the screen is visible or when credentials might have changed
+    LaunchedEffect(Unit) {
+        // Check credentials periodically or when screen becomes visible
+        hasBiometricCredentials = viewModel.hasBiometricCredentials()
+    }
+    
+    // Also check when user might have enabled biometric login (e.g., after returning from settings)
+    DisposableEffect(Unit) {
+        val checkCredentials = {
+            hasBiometricCredentials = viewModel.hasBiometricCredentials()
+        }
+        // Check immediately and set up a way to refresh
+        checkCredentials()
+        onDispose { }
+    }
     
     // Observe login success
     LaunchedEffect(authenticatedUser) {
@@ -179,10 +195,6 @@ fun LoginScreen(
         Button(
             onClick = { 
                 viewModel.login()
-                // Show dialog to enable biometric after successful login
-                if (isBiometricAvailable && !hasBiometricCredentials) {
-                    showBiometricDialog = true
-                }
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -201,24 +213,43 @@ fun LoginScreen(
             }
         }
         
+        // Show biometric dialog after successful login (for email/password users)
+        LaunchedEffect(authenticatedUser) {
+            authenticatedUser?.let { user ->
+                // Only show dialog for email/password users (SSO users can enable in settings)
+                if (isBiometricAvailable && !hasBiometricCredentials && user.provider == com.trailguide.android.data.model.AuthProvider.EMAIL) {
+                    showBiometricDialog = true
+                }
+            }
+        }
+        
         // Biometric login button (if available and credentials stored)
-        if (isBiometricAvailable && hasBiometricCredentials) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            OutlinedButton(
-                onClick = { 
-                    if (context is FragmentActivity) {
-                        viewModel.loginWithBiometric(context)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !isLoading
-            ) {
-                Icon(Icons.Default.Fingerprint, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Login with Biometric")
+        // Check credentials dynamically when button is clicked
+        if (isBiometricAvailable) {
+            // Check credentials each time this composable recomposes
+            val currentHasCredentials = viewModel.hasBiometricCredentials()
+            if (currentHasCredentials || hasBiometricCredentials) {
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedButton(
+                    onClick = { 
+                        if (context is FragmentActivity) {
+                            // Refresh credentials check before attempting login
+                            hasBiometricCredentials = viewModel.hasBiometricCredentials()
+                            if (hasBiometricCredentials) {
+                                viewModel.loginWithBiometric(context)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    enabled = !isLoading
+                ) {
+                    Icon(Icons.Default.Fingerprint, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Login with Biometric")
+                }
             }
         }
         
@@ -264,17 +295,6 @@ fun LoginScreen(
             Text("Create Account")
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Continue as Guest button
-        TextButton(
-            onClick = onGuestLogin,
-            enabled = !isLoading
-        ) {
-            Icon(Icons.Default.Person, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Continue as Guest")
-        }
     }
     
     // Biometric Enablement Dialog

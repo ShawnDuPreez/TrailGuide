@@ -183,34 +183,50 @@ class AuthRepository @Inject constructor(
     
     /**
      * Sign out the current user from Supabase.
+     * Handles invalid/expired sessions gracefully by clearing local state.
      */
     suspend fun signOut(): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
         try {
-            // Check if user is actually signed in before attempting sign out
+            // Try to sign out via Supabase API
             val currentUser = supabaseClient.auth.currentUserOrNull()
             
             if (currentUser != null) {
                 Log.d(TAG, "Signing out user: ${currentUser.email}")
-                supabaseClient.auth.signOut()
-                emit(NetworkResult.Success(Unit))
-                Log.d(TAG, "User signed out successfully")
+                try {
+                    supabaseClient.auth.signOut()
+                    Log.d(TAG, "User signed out successfully via API")
+                } catch (signOutError: Exception) {
+                    // If signOut() fails, the session might already be invalid
+                    // We'll still clear local state below
+                    Log.w(TAG, "Supabase signOut() failed, but continuing with local cleanup: ${signOutError.message}")
+                }
             } else {
                 Log.w(TAG, "No user session found, clearing local state")
-                // No active session, but clear any local state
-                emit(NetworkResult.Success(Unit))
             }
+            
+            // Always clear biometric credentials and local state, regardless of API call success
+            clearBiometricCredentials()
+            emit(NetworkResult.Success(Unit))
+            
         } catch (e: Exception) {
-            // Handle the specific JWT error gracefully
-            if (e.message?.contains("sub claim in JWT does not exist") == true ||
-                e.message?.contains("Invalid Refresh Token") == true) {
-                Log.w(TAG, "Session already invalid, clearing local state")
-                emit(NetworkResult.Success(Unit))
+            // Handle various session/JWT errors gracefully
+            // These errors indicate the session is already invalid, so we just need to clear local state
+            val errorMessage = e.message?.lowercase() ?: ""
+            if (errorMessage.contains("sub claim in jwt does not exist") ||
+                errorMessage.contains("invalid refresh token") ||
+                errorMessage.contains("session from sessionid claim in jwt does not exist") ||
+                errorMessage.contains("sessionid") ||
+                (errorMessage.contains("jwt") && errorMessage.contains("does not exist"))) {
+                Log.w(TAG, "Session already invalid, clearing local state: ${e.message}")
             } else {
-                emit(NetworkResult.Error("Sign-out failed: ${e.message}", e))
-                Log.e(TAG, "Sign-out error", e)
+                Log.w(TAG, "Sign-out error, but clearing local state anyway: ${e.message}")
             }
+            
+            // Always clear biometric credentials and local state, even on error
+            clearBiometricCredentials()
+            emit(NetworkResult.Success(Unit))
         }
     }.flowOn(Dispatchers.IO)
     
@@ -271,12 +287,14 @@ class AuthRepository @Inject constructor(
     
     /**
      * Store user credentials securely using biometric authentication.
+     * For email/password users, stores email and password.
+     * For SSO users, stores the refresh token.
      * @param activity FragmentActivity needed for biometric prompt
-     * @param email User's email
-     * @param password User's password
+     * @param email User's email (for email/password users)
+     * @param password User's password (for email/password users, null for SSO)
      * @return Flow with success/error result
      */
-    suspend fun storeBiometricCredentials(activity: androidx.fragment.app.FragmentActivity, email: String, password: String): Flow<NetworkResult<Unit>> = flow {
+    suspend fun storeBiometricCredentials(activity: androidx.fragment.app.FragmentActivity, email: String, password: String?): Flow<NetworkResult<Unit>> = flow {
         emit(NetworkResult.Loading)
         
         try {
@@ -285,7 +303,21 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
-            val success = biometricAuthManager.storeCredentialsWithBiometric(activity, email, password)
+            val success = if (password != null) {
+                // Email/password user - store credentials
+                biometricAuthManager.storeCredentialsWithBiometric(activity, email, password)
+            } else {
+                // SSO user - store refresh token
+                val currentSession = supabaseClient.auth.currentSessionOrNull()
+                if (currentSession != null) {
+                    val refreshToken = currentSession.refreshToken
+                    biometricAuthManager.storeSessionTokenWithBiometric(activity, refreshToken)
+                } else {
+                    emit(NetworkResult.Error("No active session found. Please sign in first."))
+                    return@flow
+                }
+            }
+            
             if (success) {
                 emit(NetworkResult.Success(Unit))
                 Log.d(TAG, "Biometric credentials stored successfully")
@@ -300,7 +332,7 @@ class AuthRepository @Inject constructor(
     
     /**
      * Sign in using biometric authentication.
-     * This retrieves stored credentials and signs in with Supabase.
+     * This retrieves stored credentials (email/password or SSO refresh token) and signs in with Supabase.
      * @param activity FragmentActivity needed for biometric prompt
      * @return Flow with User result
      */
@@ -333,12 +365,39 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
-            val (email, password) = credentials
-            
-            // Sign in with retrieved credentials
-            supabaseClient.auth.signInWith(Email) {
-                this.email = email
-                this.password = password
+            when (credentials) {
+                is com.trailguide.android.data.security.BiometricCredentials.EmailPassword -> {
+                    // Sign in with email/password
+                    supabaseClient.auth.signInWith(Email) {
+                        this.email = credentials.email
+                        this.password = credentials.password
+                    }
+                }
+                is com.trailguide.android.data.security.BiometricCredentials.SessionToken -> {
+                    // For SSO users, Supabase SDK should automatically persist and restore sessions
+                    // We just need to check if a valid session exists and refresh it if needed
+                    try {
+                        val currentSession = supabaseClient.auth.currentSessionOrNull()
+                        if (currentSession == null) {
+                            // No active session - Supabase SDK should have restored it if it was valid
+                            // If not restored, the session has expired and user needs to sign in again
+                            emit(NetworkResult.Error("Session expired. Please sign in again."))
+                            return@flow
+                        } else {
+                            // Session exists, refresh it to ensure it's valid
+                            try {
+                                supabaseClient.auth.refreshCurrentSession()
+                            } catch (e: Exception) {
+                                // Refresh failed - session might be expired
+                                // Try to continue anyway as the session might still be valid
+                                Log.w(TAG, "Session refresh failed, but continuing: ${e.message}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        emit(NetworkResult.Error("Biometric authentication failed: ${e.message}"))
+                        return@flow
+                    }
+                }
             }
             
             // Wait for session to be established
@@ -349,12 +408,21 @@ class AuthRepository @Inject constructor(
             if (supabaseUser != null) {
                 val user = User(
                     id = supabaseUser.id,
-                    email = supabaseUser.email ?: email,
+                    email = supabaseUser.email ?: "",
                     displayName = supabaseUser.userMetadata?.get("full_name")?.jsonPrimitive?.content
                         ?: supabaseUser.userMetadata?.get("display_name")?.jsonPrimitive?.content
-                        ?: email.substringBefore("@"),
+                        ?: supabaseUser.email?.substringBefore("@"),
                     photoUrl = supabaseUser.userMetadata?.get("avatar_url")?.jsonPrimitive?.content,
-                    provider = AuthProvider.BIOMETRIC
+                    provider = when (credentials) {
+                        is com.trailguide.android.data.security.BiometricCredentials.EmailPassword -> AuthProvider.BIOMETRIC
+                        is com.trailguide.android.data.security.BiometricCredentials.SessionToken -> {
+                            // Determine provider from user metadata
+                            when {
+                                supabaseUser.appMetadata?.get("provider")?.jsonPrimitive?.content == "google" -> AuthProvider.GOOGLE
+                                else -> AuthProvider.BIOMETRIC
+                            }
+                        }
+                    }
                 )
                 
                 emit(NetworkResult.Success(user))

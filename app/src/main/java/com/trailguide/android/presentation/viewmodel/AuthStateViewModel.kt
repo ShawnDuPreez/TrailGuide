@@ -33,6 +33,17 @@ class AuthStateViewModel @Inject constructor(
     private val _authError = MutableStateFlow<String?>(null)
     val authError: StateFlow<String?> = _authError.asStateFlow()
     
+    private val _biometricGatePassed = MutableStateFlow(false)
+    val biometricGatePassed: StateFlow<Boolean> = _biometricGatePassed.asStateFlow()
+    
+    // User preferences flow
+    val userPreferences: StateFlow<com.trailguide.android.data.model.UserPreferences> = preferencesRepository.userPreferencesFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = com.trailguide.android.data.model.UserPreferences()
+        )
+    
     init {
         checkAuthState()
     }
@@ -55,20 +66,30 @@ class AuthStateViewModel @Inject constructor(
                         _currentUser.value = user
                         _isAuthenticated.value = true
                         
+                        // Reset biometric gate on app start - user must authenticate again
+                        _biometricGatePassed.value = false
+                        
                         // User preferences will be loaded automatically via userPreferencesFlow
                     } else {
-                        // Session exists but user data is invalid
-                        signOut()
+                        // Session exists but user data is invalid - clear state
+                        _isAuthenticated.value = false
+                        _currentUser.value = null
+                        _biometricGatePassed.value = false
+                        preferencesRepository.clearPreferences()
                     }
                 } else {
-                    // No active session
+                    // No active session - ensure we're signed out
                     _isAuthenticated.value = false
                     _currentUser.value = null
+                    _biometricGatePassed.value = false
+                    preferencesRepository.clearPreferences()
                 }
             } catch (e: Exception) {
                 _authError.value = "Authentication check failed: ${e.message}"
                 _isAuthenticated.value = false
                 _currentUser.value = null
+                _biometricGatePassed.value = false
+                preferencesRepository.clearPreferences()
             } finally {
                 _isLoading.value = false
             }
@@ -77,55 +98,49 @@ class AuthStateViewModel @Inject constructor(
     
     /**
      * Sign in the user and update authentication state.
+     * Resets biometric gate so user must authenticate if biometric is enabled.
      */
     fun signIn(user: User) {
         _currentUser.value = user
         _isAuthenticated.value = true
         _authError.value = null
+        _biometricGatePassed.value = false // Reset biometric gate on new sign in
         
         // User preferences are managed separately via PreferencesRepository
     }
     
     /**
-     * Sign in as guest user (anonymous access).
-     */
-    fun signInAsGuest() {
-        val guestUser = User(
-            id = "guest_user",
-            email = "guest@trailguide.com",
-            displayName = "Guest User",
-            photoUrl = null,
-            provider = AuthProvider.ANONYMOUS
-        )
-        signIn(guestUser)
-    }
-    
-    /**
      * Sign out the user and clear authentication state.
+     * Always clears local state immediately, even if API call fails.
      */
     fun signOut() {
+        // Clear state immediately to ensure logout happens right away
+        // This ensures the UI updates immediately and user is redirected to login
+        _isAuthenticated.value = false
+        _currentUser.value = null
+        _authError.value = null
+        _biometricGatePassed.value = false
+        _isLoading.value = false
+        
+        // Clear user preferences immediately
+        viewModelScope.launch {
+            preferencesRepository.clearPreferences()
+        }
+        
+        // Also try to sign out from Supabase in the background (non-blocking)
+        // This doesn't block the UI update since state is already cleared above
         viewModelScope.launch {
             try {
+                // Just collect once - state is already cleared so this is just cleanup
                 authRepository.signOut().collect { result ->
-                    when (result) {
-                        is com.trailguide.android.data.remote.NetworkResult.Success -> {
-                            _isAuthenticated.value = false
-                            _currentUser.value = null
-                            _authError.value = null
-                            
-                            // Clear user preferences
-                            preferencesRepository.clearPreferences()
-                        }
-                        is com.trailguide.android.data.remote.NetworkResult.Error -> {
-                            _authError.value = "Sign out failed: ${result.message}"
-                        }
-                        is com.trailguide.android.data.remote.NetworkResult.Loading -> {
-                            // Loading state
-                        }
+                    // State is already cleared above, just log any errors for debugging
+                    if (result is com.trailguide.android.data.remote.NetworkResult.Error) {
+                        android.util.Log.w("AuthStateViewModel", "Sign out API error: ${result.message}")
                     }
                 }
             } catch (e: Exception) {
-                _authError.value = "Sign out error: ${e.message}"
+                // Log exception but state is already cleared
+                android.util.Log.w("AuthStateViewModel", "Sign out exception: ${e.message}")
             }
         }
     }
@@ -156,5 +171,19 @@ class AuthStateViewModel @Inject constructor(
      */
     fun hasBiometricCredentials(): Boolean {
         return authRepository.hasBiometricCredentials()
+    }
+    
+    /**
+     * Mark biometric gate as passed (after successful biometric authentication).
+     */
+    fun passBiometricGate() {
+        _biometricGatePassed.value = true
+    }
+    
+    /**
+     * Reset biometric gate (when user signs out or app restarts).
+     */
+    fun resetBiometricGate() {
+        _biometricGatePassed.value = false
     }
 }

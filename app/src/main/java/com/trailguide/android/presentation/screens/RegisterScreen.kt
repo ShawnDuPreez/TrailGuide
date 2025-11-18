@@ -44,7 +44,7 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     
-    // Observe registration success
+    // Observe registration success (including Google SSO)
     LaunchedEffect(authenticatedUser) {
         authenticatedUser?.let { user ->
             onRegisterSuccess(user)
@@ -263,6 +263,19 @@ fun RegisterScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
             Divider(modifier = Modifier.weight(1f))
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Google SSO Register button
+        OutlinedButton(
+            onClick = { viewModel.loginWithGoogle() },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = !isLoading
+        ) {
+            Icon(Icons.Default.AccountCircle, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Continue with Google")
         }
         
         Spacer(modifier = Modifier.height(16.dp))
