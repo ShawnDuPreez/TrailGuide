@@ -13,7 +13,6 @@ import com.trailguide.android.data.remote.OpenRouteClient
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.remote.safeApiCall
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -38,7 +37,8 @@ class TrailRepository @Inject constructor(
     private val apiService: TrailApiService,
     private val downloadedTrailDao: com.trailguide.android.data.local.DownloadedTrailDao,
     private val favoriteTrailDao: com.trailguide.android.data.local.FavoriteTrailDao,
-    private val supabaseClient: SupabaseClient
+    private val supabaseClient: SupabaseClient,
+    private val supabaseAuthProvider: SupabaseAuthProvider
 ) {
     
     companion object {
@@ -49,7 +49,7 @@ class TrailRepository @Inject constructor(
      * Get current user ID from Supabase auth.
      */
     private fun getCurrentUserId(): String? {
-        return supabaseClient.auth.currentUserOrNull()?.id
+        return supabaseAuthProvider.currentUserId()
     }
     
     /**

@@ -5,20 +5,17 @@ import com.trailguide.android.data.local.DownloadedTrailDao
 import com.trailguide.android.data.local.FavoriteTrailDao
 import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.TrailApiService
+import com.trailguide.android.data.repository.SupabaseAuthProvider
 import com.trailguide.android.data.repository.TrailRepository
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.AuthKt
-import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.MockedStatic
 import org.mockito.Mockito.*
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
@@ -32,6 +29,7 @@ import kotlin.test.assertTrue
  * Tests API integration and data transformation.
  */
 @ExperimentalCoroutinesApi
+@RunWith(org.robolectric.RobolectricTestRunner::class)
 class TrailRepositoryTest {
     
     @Mock
@@ -47,9 +45,7 @@ class TrailRepositoryTest {
     private lateinit var supabaseClient: SupabaseClient
     
     @Mock
-    private lateinit var auth: Auth
-    
-    private lateinit var authMock: MockedStatic<AuthKt>
+    private lateinit var supabaseAuthProvider: SupabaseAuthProvider
     
     private lateinit var repository: TrailRepository
     
@@ -71,15 +67,8 @@ class TrailRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        authMock = mockStatic(AuthKt::class.java)
-        authMock.`when` { AuthKt.getAuth(supabaseClient) }.thenReturn(auth)
-        whenever(auth.currentUserOrNull()).thenReturn(null)
-        repository = TrailRepository(apiService, downloadedTrailDao, favoriteTrailDao, supabaseClient)
-    }
-    
-    @After
-    fun tearDown() {
-        authMock.close()
+        whenever(supabaseAuthProvider.currentUserId()).thenReturn(null)
+        repository = TrailRepository(apiService, downloadedTrailDao, favoriteTrailDao, supabaseClient, supabaseAuthProvider)
     }
     
     @Test

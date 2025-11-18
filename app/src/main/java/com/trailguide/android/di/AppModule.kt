@@ -180,9 +180,10 @@ object AppModule {
         apiService: TrailApiService,
         downloadedTrailDao: DownloadedTrailDao,
         favoriteTrailDao: com.trailguide.android.data.local.FavoriteTrailDao,
-        supabaseClient: SupabaseClient
+        supabaseClient: SupabaseClient,
+        supabaseAuthProvider: com.trailguide.android.data.repository.SupabaseAuthProvider
     ): TrailRepository {
-        return TrailRepository(apiService, downloadedTrailDao, favoriteTrailDao, supabaseClient)
+        return TrailRepository(apiService, downloadedTrailDao, favoriteTrailDao, supabaseClient, supabaseAuthProvider)
     }
     
     /**
