@@ -9,8 +9,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.trailguide.android.R
 import com.trailguide.android.presentation.viewmodel.FavoritesViewModel
 
 /**
@@ -49,12 +51,12 @@ fun FavoritesScreen(
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
-                text = { Text("Favorites") }
+                text = { Text(stringResource(R.string.favorites)) }
             )
             Tab(
                 selected = selectedTab == 1,
                 onClick = { selectedTab = 1 },
-                text = { Text("Collections") }
+                text = { Text(stringResource(R.string.collections)) }
             )
         }
         
@@ -88,12 +90,12 @@ fun FavoritesScreen(
                                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                             )
                             Text(
-                                "No favorite trails yet",
+                                stringResource(R.string.no_favorite_trails_yet),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                             Text(
-                                "Tap the heart icon on any trail to add it here",
+                                stringResource(R.string.tap_heart_to_add),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             )
@@ -101,7 +103,7 @@ fun FavoritesScreen(
                             Button(onClick = { viewModel.refresh() }) {
                                 Icon(Icons.Default.Refresh, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Refresh")
+                                Text(stringResource(R.string.refresh))
                             }
                         }
                     }
@@ -129,7 +131,7 @@ fun FavoritesScreen(
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Create Collection")
+                        Text(stringResource(R.string.create_collection))
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
@@ -150,12 +152,12 @@ fun FavoritesScreen(
                                     tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                 )
                                 Text(
-                                    "No collections yet",
+                                    stringResource(R.string.no_collections_yet),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                                 Text(
-                                    "Create collections to organize your favorite trails",
+                                    stringResource(R.string.create_collections_hint),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                                 )
@@ -230,7 +232,7 @@ fun CollectionCard(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${collection.trailIds.size} trails",
+                    text = stringResource(R.string.trails_count, collection.trailIds.size),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -254,7 +256,7 @@ fun CreateCollectionDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create Collection") },
+        title = { Text(stringResource(R.string.create_collection)) },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -262,14 +264,14 @@ fun CreateCollectionDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Collection Name") },
+                    label = { Text(stringResource(R.string.collection_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (optional)") },
+                    label = { Text(stringResource(R.string.description_optional)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -280,12 +282,12 @@ fun CreateCollectionDialog(
                 onClick = { onCreate(name, description) },
                 enabled = name.isNotBlank()
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">TrailGuide</string>
+    
+    <!-- Navigation -->
+    <string name="trails_screen_title">Izindlela</string>
+    <string name="trails">Izindlela</string>
+    <string name="favorites">Intandokazi</string>
+    <string name="map_screen_title">Imephu</string>
+    <string name="map">Imephu</string>
+    <string name="downloads_screen_title">Okulandiwe</string>
+    <string name="downloads">Okulandiwe</string>
+    <string name="profile_screen_title">Iphrofayili</string>
+    <string name="profile">Iphrofayili</string>
+    <string name="search_hint">Sesha izindlela…</string>
+    <string name="filter_difficulty">Ubunzima</string>
+    <string name="filter_distance">Ibanga</string>
+    
+    <!-- Authentication -->
+    <string name="sign_in_google">Ngena nge-Google</string>
+    <string name="sign_out">Phuma</string>
+    <string name="sign_in">Ngena</string>
+    <string name="register">Bhalisa</string>
+    <string name="back_to_sign_in">Buyela Ekungeneni</string>
+    <string name="authentication_supabase">Ukuqinisekisa (Supabase)</string>
+    <string name="sign_in_with_google_supabase">Ngena nge-Google usebenzisa Ukuqinisekisa kwe-Supabase</string>
+    <string name="or_sign_in_with_email">Noma ngena nge-imeyili</string>
+    <string name="email">I-imeyili</string>
+    <string name="password">Iphasiwedi</string>
+    <string name="display_name">Igama Lokubonisa</string>
+    <string name="note_google_sign_in">Qaphela: Uma ungene nge-Google, sebenzisa ukungenela nge-Google ngenhla</string>
+    <string name="guest">Isivakashi</string>
+    <string name="user">Umsebenzisi</string>
+    <string name="supabase_auth">Ukuqinisekisa kwe-Supabase</string>
+    
+    <!-- Profile Screen -->
+    <string name="biometric_login">Ukungenela Nge-Biometric</string>
+    <string name="enable_biometric_authentication">Nika amandla ukuqinisekisa nge-biometric</string>
+    <string name="notifications">Izaziso</string>
+    <string name="trail_reminders_safety_alerts">Izikhumbuzi zezindlela &amp; izexwayiso zokuphepha</string>
+    <string name="notifications_at">Izaziso ngo-%1$s</string>
+    <string name="test_notification_now">Hlola Isaziso Manje</string>
+    <string name="select_notification_time">Khetha Isikhathi Sezaziso</string>
+    <string name="confirm">Qinisekisa</string>
+    <string name="cancel">Khansela</string>
+    <string name="language">Ulimi</string>
+    <string name="app_info">TrailGuide Android</string>
+    <string name="version">Inguqulo %1$s</string>
+    <string name="native_kotlin_mvvm">I-Kotlin Yendabuko • I-MVVM Architecture</string>
+    <string name="supabase_auth_database">Ukuqinisekisa kwe-Supabase &amp; Idathabheyisi</string>
+    
+    <!-- Trail Details -->
+    <string name="trail_details">Imininingwane Yendlela</string>
+    <string name="back">Emuva</string>
+    <string name="stats">Izibalo</string>
+    <string name="distance">Ibanga</string>
+    <string name="elevation">Ukuphakama</string>
+    <string name="rating">Isilinganiso</string>
+    <string name="description">Incazelo</string>
+    <string name="segments">Izingxenye</string>
+    <string name="start_hike">Qala Ukuhamba</string>
+    <string name="download_offline">Landa Okungaxhunyiwe</string>
+    <string name="favorite">Okuthandwayo</string>
+    <string name="retry">Zama Futhi</string>
+    
+    <!-- Reviews -->
+    <string name="community_reviews">Izibuyekezo Zomphakathi</string>
+    <string name="reviews_count">%1$d izibuyekezo</string>
+    <string name="add_review">Engeza Isibuyekezo</string>
+    <string name="no_reviews_yet">Azikho izibuyekezo okwamanje</string>
+    <string name="be_first_to_share">Yiba ngowokuqala ukwabelana ngesipiliyoni sakho!</string>
+    
+    <!-- Favorites Screen -->
+    <string name="collections">Amaqoqo</string>
+    <string name="no_favorite_trails_yet">Azikho izindlela ezithandwayo okwamanje</string>
+    <string name="tap_heart_to_add">Chofoza isithonjana senhliziyo kunoma yiliphi umzila ukuze ulifake lapha</string>
+    <string name="refresh">Vuselela</string>
+    <string name="no_collections_yet">Azikho amaqoqo okwamanje</string>
+    <string name="create_collections_hint">Dala amaqoqo ukuze uhlele izindlela zakho ezithandwayo</string>
+    <string name="create_collection">Dala Iqoqo</string>
+    <string name="collection_name">Igama Leqoqo</string>
+    <string name="description_optional">Incazelo (okukhethwayo)</string>
+    <string name="create">Dala</string>
+    <string name="trails_count">%1$d izindlela</string>
+    
+    <!-- Weather -->
+    <string name="weather_conditions">Izimo Zesimo Sezulu</string>
+    <string name="refresh_weather">Vuselela isimo sezulu</string>
+    <string name="feels_like">Kuzizwa njeng-%1$d°C</string>
+    <string name="humidity">Umswakama</string>
+    <string name="wind">Umoya</string>
+    <string name="trail_safety_rating">Isilinganiso Sokuphepha Sendlela</string>
+    <string name="three_day_forecast">Isibikezelo Sezinsuku Ezintathu</string>
+    <string name="temp_range">%1$d° / %2$d°</string>
+    
+    <!-- Notifications -->
+    <string name="daily_weather_channel">Isimo Sezulu Sanamuhla</string>
+    <string name="daily_weather_channel_description">Izibuyekezo zesimo sezulu sanamuhla zendawo yakho</string>
+    <string name="safety_alerts_channel">Izexwayiso Zokuphepha</string>
+    <string name="safety_alerts_channel_description">Izexwayiso zokuphepha zesimo sezulu zezimo eziyingozi</string>
+    <string name="good_morning_todays_weather">Sawubona! Isimo Sezulu Sanamuhla</string>
+    <string name="weather_notification_body">%1$d°C - %2$s\nUkuphepha: %3$s</string>
+    <string name="weather_safety_alert">⚠️ Isixwayiso Sokuphepha Sesimo Sezulu</string>
+    <string name="high_winds_detected">⚠️ Umoya omkhulu utholakele (%1$d km/h). </string>
+    <string name="thunderstorm_warning">⚠️ Isixwayiso sezulu esinamathunder. </string>
+    <string name="heavy_rain_expected">⚠️ Imvula enkulu ilindelwe. </string>
+    <string name="dangerous_weather_conditions">⚠️ Izimo zezulu eziyingozi. </string>
+    <string name="avoid_hiking_trails_today">Gwema izindlela zokuhamba namuhla. </string>
+    <string name="current_weather">Okwamanje: %1$d°C, %2$s</string>
+    
+    <!-- Safety Ratings -->
+    <string name="safety_excellent">Kuhle Kakhulu</string>
+    <string name="safety_good">Kuhle</string>
+    <string name="safety_moderate">Maphakathi</string>
+    <string name="safety_poor">Kubi</string>
+    <string name="safety_dangerous">Kuyingozi</string>
+    
+    <!-- Messages -->
+    <string name="dismiss">Susa</string>
+    <string name="test_notification">Hlola isaziso</string>
+    <string name="edit_notification_time">Hlela isikhathi sezaziso</string>
+</resources>
+

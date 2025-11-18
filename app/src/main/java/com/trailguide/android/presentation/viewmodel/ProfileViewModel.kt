@@ -1,5 +1,7 @@
 package com.trailguide.android.presentation.viewmodel
 
+import android.content.Context
+import android.content.res.Configuration as AndroidConfiguration
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.trailguide.android.data.model.Language
@@ -10,8 +12,10 @@ import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.data.repository.PreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -22,7 +26,8 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val preferencesRepository: PreferencesRepository,
-    private val notificationScheduler: NotificationScheduler
+    private val notificationScheduler: NotificationScheduler,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     
     // User authentication state
@@ -237,10 +242,39 @@ class ProfileViewModel @Inject constructor(
     /**
      * Update language preference.
      */
-    fun setLanguage(language: Language) {
+    fun setLanguage(language: Language, onLanguageChanged: (() -> Unit)? = null) {
         viewModelScope.launch {
-            preferencesRepository.setLanguage(language)
+            // Only update if language actually changed
+            val currentLanguage = userPreferences.value.language
+            if (currentLanguage != language) {
+                // Save preference first
+                preferencesRepository.setLanguage(language)
+                // Update app locale immediately
+                updateAppLocale(language)
+                // Wait a moment for preference to be saved, then recreate activity
+                kotlinx.coroutines.delay(50)
+                // Invoke callback on main thread to recreate activity
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    onLanguageChanged?.invoke()
+                }
+            }
         }
+    }
+    
+    /**
+     * Update app locale when language changes.
+     */
+    private fun updateAppLocale(language: Language) {
+        val locale = when (language) {
+            Language.ENGLISH -> Locale("en")
+            Language.AFRIKAANS -> Locale("af")
+            Language.ZULU -> Locale("zu")
+        }
+        
+        Locale.setDefault(locale)
+        val config = AndroidConfiguration(context.resources.configuration)
+        config.setLocale(locale)
+        context.resources.updateConfiguration(config, context.resources.displayMetrics)
     }
     
     /**

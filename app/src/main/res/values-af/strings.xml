@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">TrailGuide</string>
+    
+    <!-- Navigation -->
+    <string name="trails_screen_title">Roetes</string>
+    <string name="trails">Roetes</string>
+    <string name="favorites">Gunstelinge</string>
+    <string name="map_screen_title">Kaart</string>
+    <string name="map">Kaart</string>
+    <string name="downloads_screen_title">Aflaaie</string>
+    <string name="downloads">Aflaaie</string>
+    <string name="profile_screen_title">Profiel</string>
+    <string name="profile">Profiel</string>
+    <string name="search_hint">Soek roetes…</string>
+    <string name="filter_difficulty">Moeilikheidsgraad</string>
+    <string name="filter_distance">Afstand</string>
+    
+    <!-- Authentication -->
+    <string name="sign_in_google">Teken in met Google</string>
+    <string name="sign_out">Teken Uit</string>
+    <string name="sign_in">Teken In</string>
+    <string name="register">Registreer</string>
+    <string name="back_to_sign_in">Terug na Teken In</string>
+    <string name="authentication_supabase">Verifikasie (Supabase)</string>
+    <string name="sign_in_with_google_supabase">Teken in met Google deur Supabase Verifikasie</string>
+    <string name="or_sign_in_with_email">Of teken in met E-pos</string>
+    <string name="email">E-pos</string>
+    <string name="password">Wagwoord</string>
+    <string name="display_name">Vertoon Naam</string>
+    <string name="note_google_sign_in">Let wel: As jy met Google ingeteken het, gebruik Google teken-in hierbo</string>
+    <string name="guest">Gas</string>
+    <string name="user">Gebruiker</string>
+    <string name="supabase_auth">Supabase Verifikasie</string>
+    
+    <!-- Profile Screen -->
+    <string name="biometric_login">Biometriese Aanmelding</string>
+    <string name="enable_biometric_authentication">Aktiveer biometriese verifikasie</string>
+    <string name="notifications">Kennisgewings</string>
+    <string name="trail_reminders_safety_alerts">Roete herinnerings &amp; veiligheidswaarskuwings</string>
+    <string name="notifications_at">Kennisgewings om %1$s</string>
+    <string name="test_notification_now">Toets Kennisgewing Nou</string>
+    <string name="select_notification_time">Kies Kennisgewing Tyd</string>
+    <string name="confirm">Bevestig</string>
+    <string name="cancel">Kanselleer</string>
+    <string name="language">Taal</string>
+    <string name="app_info">TrailGuide Android</string>
+    <string name="version">Weergawe %1$s</string>
+    <string name="native_kotlin_mvvm">Inheemse Kotlin • MVVM Argitektuur</string>
+    <string name="supabase_auth_database">Supabase Verifikasie &amp; Databasis</string>
+    
+    <!-- Trail Details -->
+    <string name="trail_details">Roete Besonderhede</string>
+    <string name="back">Terug</string>
+    <string name="stats">Statistieke</string>
+    <string name="distance">Afstand</string>
+    <string name="elevation">Hoogte</string>
+    <string name="rating">Gradering</string>
+    <string name="description">Beskrywing</string>
+    <string name="segments">Segmente</string>
+    <string name="start_hike">Begin Stap</string>
+    <string name="download_offline">Aflaai vir Offlyn</string>
+    <string name="favorite">Gunsteling</string>
+    <string name="retry">Probeer Weer</string>
+    
+    <!-- Reviews -->
+    <string name="community_reviews">Gemeenskapsresensies</string>
+    <string name="reviews_count">%1$d resensies</string>
+    <string name="add_review">Voeg Resensie By</string>
+    <string name="no_reviews_yet">Geen resensies nog nie</string>
+    <string name="be_first_to_share">Wees die eerste om jou ervaring te deel!</string>
+    
+    <!-- Favorites Screen -->
+    <string name="collections">Versamelings</string>
+    <string name="no_favorite_trails_yet">Geen gunsteling roetes nog nie</string>
+    <string name="tap_heart_to_add">Tik op die hart-ikoon op enige roete om dit hier by te voeg</string>
+    <string name="refresh">Verfris</string>
+    <string name="no_collections_yet">Geen versamelings nog nie</string>
+    <string name="create_collections_hint">Skep versamelings om jou gunsteling roetes te organiseer</string>
+    <string name="create_collection">Skep Versameling</string>
+    <string name="collection_name">Versameling Naam</string>
+    <string name="description_optional">Beskrywing (opsioneel)</string>
+    <string name="create">Skep</string>
+    <string name="trails_count">%1$d roetes</string>
+    
+    <!-- Weather -->
+    <string name="weather_conditions">Weerstoestande</string>
+    <string name="refresh_weather">Verfris weer</string>
+    <string name="feels_like">Voel soos %1$d°C</string>
+    <string name="humidity">Vogtigheid</string>
+    <string name="wind">Wind</string>
+    <string name="trail_safety_rating">Roete Veiligheidsgradering</string>
+    <string name="three_day_forecast">3-Dag Weersvoorspelling</string>
+    <string name="temp_range">%1$d° / %2$d°</string>
+    
+    <!-- Notifications -->
+    <string name="daily_weather_channel">Daaglikse Weer</string>
+    <string name="daily_weather_channel_description">Daaglikse weeropdaterings vir jou ligging</string>
+    <string name="safety_alerts_channel">Veiligheidswaarskuwings</string>
+    <string name="safety_alerts_channel_description">Weer veiligheidswaarskuwings vir gevaarlike toestande</string>
+    <string name="good_morning_todays_weather">Goeie Môre! Vandag se Weer</string>
+    <string name="weather_notification_body">%1$d°C - %2$s\nVeiligheid: %3$s</string>
+    <string name="weather_safety_alert">⚠️ Weer Veiligheidswaarskuwing</string>
+    <string name="high_winds_detected">⚠️ Hoë winde waargeneem (%1$d km/h). </string>
+    <string name="thunderstorm_warning">⚠️ Donderstorm waarskuwing. </string>
+    <string name="heavy_rain_expected">⚠️ Swaar reën verwag. </string>
+    <string name="dangerous_weather_conditions">⚠️ Gevaarlike weerstoestande. </string>
+    <string name="avoid_hiking_trails_today">Vermy staproetes vandag. </string>
+    <string name="current_weather">Huidige: %1$d°C, %2$s</string>
+    
+    <!-- Safety Ratings -->
+    <string name="safety_excellent">Uitstekend</string>
+    <string name="safety_good">Goed</string>
+    <string name="safety_moderate">Matig</string>
+    <string name="safety_poor">Sleg</string>
+    <string name="safety_dangerous">Gevaarlik</string>
+    
+    <!-- Messages -->
+    <string name="dismiss">Verwyder</string>
+    <string name="test_notification">Toets kennisgewing</string>
+    <string name="edit_notification_time">Wysig kennisgewing tyd</string>
+</resources>
+

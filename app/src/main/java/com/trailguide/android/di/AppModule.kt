@@ -185,9 +185,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideWeatherRepository(
-        weatherApiService: WeatherApiService
+        weatherApiService: WeatherApiService,
+        preferencesRepository: PreferencesRepository
     ): WeatherRepository {
-        return WeatherRepository(weatherApiService)
+        return WeatherRepository(weatherApiService, preferencesRepository)
     }
     
     /**
