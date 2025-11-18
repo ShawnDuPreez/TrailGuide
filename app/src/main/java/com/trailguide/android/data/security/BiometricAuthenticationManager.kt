@@ -36,9 +36,10 @@ class BiometricAuthenticationManager(
     
     /**
      * Check if biometric authentication is available on the device.
+     * Uses BIOMETRIC_STRONG for better security (fingerprint or face recognition).
      */
     fun isBiometricAvailable(): BiometricStatus {
-        return when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)) {
+        return when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)) {
             BiometricManager.BIOMETRIC_SUCCESS -> BiometricStatus.AVAILABLE
             BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> BiometricStatus.NO_HARDWARE
             BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> BiometricStatus.HARDWARE_UNAVAILABLE
@@ -95,7 +96,7 @@ class BiometricAuthenticationManager(
             .setTitle(title)
             .setSubtitle(subtitle)
             .setNegativeButtonText(negativeButtonText)
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
             .build()
         
         biometricPrompt.authenticate(promptInfo)
@@ -107,6 +108,7 @@ class BiometricAuthenticationManager(
     
     /**
      * Encrypt and store user credentials securely using biometric authentication.
+     * This method prompts the user for biometric authentication before storing credentials.
      * @param activity The FragmentActivity to show the biometric prompt
      * @param email User's email
      * @param password User's password (will be encrypted)
@@ -116,77 +118,185 @@ class BiometricAuthenticationManager(
         activity: FragmentActivity,
         email: String,
         password: String
-    ): Boolean = suspendCancellableCoroutine { continuation ->
-        
+    ): Boolean {
         if (!canUseBiometric()) {
-            continuation.resume(false)
-            return@suspendCancellableCoroutine
+            return false
         }
         
-        try {
-            // Generate or get the encryption key
-            val secretKey = generateSecretKey()
-            
-            // Encrypt the credentials
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-            
-            val iv = cipher.iv
-            val encryptedCredentials = cipher.doFinal("$email:$password".toByteArray())
-            
-            // Store encrypted data (in a real app, you'd use EncryptedSharedPreferences)
-            val sharedPrefs = context.getSharedPreferences("biometric_credentials", Context.MODE_PRIVATE)
-            val editor = sharedPrefs.edit()
-            editor.putString("encrypted_credentials", android.util.Base64.encodeToString(encryptedCredentials, android.util.Base64.DEFAULT))
-            editor.putString("iv", android.util.Base64.encodeToString(iv, android.util.Base64.DEFAULT))
-            editor.apply()
-            
-            continuation.resume(true)
-            
-        } catch (e: Exception) {
-            continuation.resumeWithException(e)
+        // First, authenticate with biometric to ensure user consent
+        val authResult = authenticateWithBiometric(
+            activity = activity,
+            title = "Enable Biometric Login",
+            subtitle = "Authenticate to securely store your credentials"
+        )
+        
+        if (!authResult) {
+            return false
+        }
+        
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                // Generate or get the encryption key
+                val secretKey = generateSecretKey()
+                
+                // Encrypt the credentials
+                val cipher = Cipher.getInstance(TRANSFORMATION)
+                cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+                
+                val iv = cipher.iv
+                val encryptedCredentials = cipher.doFinal("EMAIL:$email:$password".toByteArray())
+                
+                // Store encrypted data (in a real app, you'd use EncryptedSharedPreferences)
+                val sharedPrefs = context.getSharedPreferences("biometric_credentials", Context.MODE_PRIVATE)
+                val editor = sharedPrefs.edit()
+                editor.putString("encrypted_credentials", android.util.Base64.encodeToString(encryptedCredentials, android.util.Base64.DEFAULT))
+                editor.putString("iv", android.util.Base64.encodeToString(iv, android.util.Base64.DEFAULT))
+                editor.putString("credential_type", "EMAIL")
+                editor.apply()
+                
+                continuation.resume(true)
+                
+            } catch (e: Exception) {
+                continuation.resumeWithException(e)
+            }
+        }
+    }
+    
+    /**
+     * Encrypt and store session token securely using biometric authentication.
+     * This is used for SSO users who don't have email/password credentials.
+     * @param activity The FragmentActivity to show the biometric prompt
+     * @param refreshToken The Supabase refresh token (will be encrypted)
+     * @return true if token was stored successfully, false otherwise
+     */
+    suspend fun storeSessionTokenWithBiometric(
+        activity: FragmentActivity,
+        refreshToken: String
+    ): Boolean {
+        if (!canUseBiometric()) {
+            return false
+        }
+        
+        // First, authenticate with biometric to ensure user consent
+        val authResult = authenticateWithBiometric(
+            activity = activity,
+            title = "Enable Biometric Login",
+            subtitle = "Authenticate to securely store your session"
+        )
+        
+        if (!authResult) {
+            return false
+        }
+        
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                // Generate or get the encryption key
+                val secretKey = generateSecretKey()
+                
+                // Encrypt the refresh token
+                val cipher = Cipher.getInstance(TRANSFORMATION)
+                cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+                
+                val iv = cipher.iv
+                val encryptedToken = cipher.doFinal("SSO:$refreshToken".toByteArray())
+                
+                // Store encrypted data
+                val sharedPrefs = context.getSharedPreferences("biometric_credentials", Context.MODE_PRIVATE)
+                val editor = sharedPrefs.edit()
+                editor.putString("encrypted_credentials", android.util.Base64.encodeToString(encryptedToken, android.util.Base64.DEFAULT))
+                editor.putString("iv", android.util.Base64.encodeToString(iv, android.util.Base64.DEFAULT))
+                editor.putString("credential_type", "SSO")
+                editor.apply()
+                
+                continuation.resume(true)
+                
+            } catch (e: Exception) {
+                continuation.resumeWithException(e)
+            }
         }
     }
     
     /**
      * Retrieve and decrypt user credentials using biometric authentication.
+     * This method prompts the user for biometric authentication before retrieving credentials.
      * @param activity The FragmentActivity to show the biometric prompt
-     * @return Pair of (email, password) if successful, null otherwise
+     * @return BiometricCredentials containing either email/password or SSO refresh token, null otherwise
      */
-    suspend fun retrieveCredentialsWithBiometric(activity: FragmentActivity): Pair<String, String>? = suspendCancellableCoroutine { continuation ->
-        
+    suspend fun retrieveCredentialsWithBiometric(activity: FragmentActivity): BiometricCredentials? {
         if (!canUseBiometric()) {
-            continuation.resume(null)
-            return@suspendCancellableCoroutine
+            return null
         }
         
-        try {
-            val sharedPrefs = context.getSharedPreferences("biometric_credentials", Context.MODE_PRIVATE)
-            val encryptedCredentials = sharedPrefs.getString("encrypted_credentials", null)
-            val ivString = sharedPrefs.getString("iv", null)
-            
-            if (encryptedCredentials == null || ivString == null) {
-                continuation.resume(null)
-                return@suspendCancellableCoroutine
+        // First, authenticate with biometric to unlock the key
+        val authResult = authenticateWithBiometric(
+            activity = activity,
+            title = "Sign in to TrailGuide",
+            subtitle = "Use your fingerprint or face to sign in"
+        )
+        
+        if (!authResult) {
+            return null
+        }
+        
+        return suspendCancellableCoroutine { continuation ->
+            try {
+                val sharedPrefs = context.getSharedPreferences("biometric_credentials", Context.MODE_PRIVATE)
+                val encryptedCredentials = sharedPrefs.getString("encrypted_credentials", null)
+                val ivString = sharedPrefs.getString("iv", null)
+                val credentialType = sharedPrefs.getString("credential_type", "EMAIL")
+                
+                if (encryptedCredentials == null || ivString == null) {
+                    continuation.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+                
+                val secretKey = getSecretKey()
+                val cipher = Cipher.getInstance(TRANSFORMATION)
+                val iv = android.util.Base64.decode(ivString, android.util.Base64.DEFAULT)
+                cipher.init(Cipher.DECRYPT_MODE, secretKey, IvParameterSpec(iv))
+                
+                val decryptedBytes = cipher.doFinal(android.util.Base64.decode(encryptedCredentials, android.util.Base64.DEFAULT))
+                val credentials = String(decryptedBytes)
+                
+                when (credentialType) {
+                    "SSO" -> {
+                        // Format: "SSO:refreshToken"
+                        val parts = credentials.split(":", limit = 2)
+                        if (parts.size == 2 && parts[0] == "SSO") {
+                            continuation.resume(BiometricCredentials.SessionToken(parts[1]))
+                        } else {
+                            continuation.resume(null)
+                        }
+                    }
+                    "EMAIL" -> {
+                        // Format: "EMAIL:email:password"
+                        val parts = credentials.split(":", limit = 3)
+                        if (parts.size == 3 && parts[0] == "EMAIL") {
+                            continuation.resume(BiometricCredentials.EmailPassword(parts[1], parts[2]))
+                        } else {
+                            // Legacy format: "email:password"
+                            val legacyParts = credentials.split(":", limit = 2)
+                            if (legacyParts.size == 2) {
+                                continuation.resume(BiometricCredentials.EmailPassword(legacyParts[0], legacyParts[1]))
+                            } else {
+                                continuation.resume(null)
+                            }
+                        }
+                    }
+                    else -> {
+                        // Legacy format: "email:password"
+                        val parts = credentials.split(":", limit = 2)
+                        if (parts.size == 2) {
+                            continuation.resume(BiometricCredentials.EmailPassword(parts[0], parts[1]))
+                        } else {
+                            continuation.resume(null)
+                        }
+                    }
+                }
+                
+            } catch (e: Exception) {
+                continuation.resumeWithException(e)
             }
-            
-            val secretKey = getSecretKey()
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            val iv = android.util.Base64.decode(ivString, android.util.Base64.DEFAULT)
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, IvParameterSpec(iv))
-            
-            val decryptedBytes = cipher.doFinal(android.util.Base64.decode(encryptedCredentials, android.util.Base64.DEFAULT))
-            val credentials = String(decryptedBytes)
-            
-            val parts = credentials.split(":", limit = 2)
-            if (parts.size == 2) {
-                continuation.resume(Pair(parts[0], parts[1]))
-            } else {
-                continuation.resume(null)
-            }
-            
-        } catch (e: Exception) {
-            continuation.resumeWithException(e)
         }
     }
     
@@ -238,4 +348,12 @@ enum class BiometricStatus {
     HARDWARE_UNAVAILABLE,
     NONE_ENROLLED,
     UNKNOWN_ERROR
+}
+
+/**
+ * Sealed class representing different types of biometric credentials.
+ */
+sealed class BiometricCredentials {
+    data class EmailPassword(val email: String, val password: String) : BiometricCredentials()
+    data class SessionToken(val refreshToken: String) : BiometricCredentials()
 }
