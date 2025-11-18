@@ -27,7 +27,8 @@ import com.trailguide.android.presentation.viewmodel.ProfileViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    viewModel: ProfileViewModel = hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel(),
+    authStateViewModel: com.trailguide.android.presentation.viewmodel.AuthStateViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val currentUser by viewModel.currentUser.collectAsState()
@@ -122,7 +123,7 @@ fun ProfileScreen(
                     
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isSignedIn) currentUser?.email ?: "User" else "Guest",
+                            text = currentUser?.email ?: "User",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
@@ -132,20 +133,44 @@ fun ProfileScreen(
                         )
                     }
                     
-                    if (!isSignedIn) {
-                        Button(
-                            onClick = { viewModel.signInWithGoogle() }
-                        ) {
-                            Icon(Icons.Default.Login, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sign In")
+                    var showSignOutDialog by remember { mutableStateOf(false) }
+                    
+                    OutlinedButton(
+                        onClick = { 
+                            showSignOutDialog = true
                         }
-                    } else {
-                        OutlinedButton(onClick = { viewModel.signOut() }) {
-                            Icon(Icons.Default.Logout, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sign Out")
-                        }
+                    ) {
+                        Icon(Icons.Default.Logout, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Sign Out")
+                    }
+                    
+                    // Sign out confirmation dialog
+                    if (showSignOutDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showSignOutDialog = false },
+                            title = { Text("Sign Out") },
+                            text = { Text("Are you sure you want to sign out?") },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        showSignOutDialog = false
+                                        // Call AuthStateViewModel's signOut to ensure global state is updated
+                                        // This will clear all auth state and redirect to login screen immediately
+                                        authStateViewModel.signOut()
+                                    }
+                                ) {
+                                    Text("Sign Out")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { showSignOutDialog = false }
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
+                        )
                     }
                 }
                 
@@ -157,109 +182,6 @@ fun ProfileScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
-            }
-        }
-        
-        // Email/Password sign-in card (optional)
-        if (!isSignedIn) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "Or sign in with Email",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    var email by remember { mutableStateOf("") }
-                    var password by remember { mutableStateOf("") }
-                    var displayName by remember { mutableStateOf("") }
-                    var isRegistering by remember { mutableStateOf(false) }
-                    
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Email
-                        )
-                    )
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Password
-                        )
-                    )
-                    
-                    if (isRegistering) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        
-                        OutlinedTextField(
-                            value = displayName,
-                            onValueChange = { displayName = it },
-                            label = { Text("Display Name") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                if (isRegistering) {
-                                    viewModel.registerWithEmail(email, password, displayName)
-                                } else {
-                                    viewModel.signInWithEmail(email, password)
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            enabled = email.isNotBlank() && password.isNotBlank() && 
-                                     (!isRegistering || displayName.isNotBlank())
-                        ) {
-                            Text(if (isRegistering) "Register" else "Sign In")
-                        }
-                        
-                        OutlinedButton(
-                            onClick = {
-                                isRegistering = !isRegistering
-                                displayName = ""
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isRegistering) "Back to Sign In" else "Register")
-                        }
-                    }
-                    
-                    if (!isRegistering) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "Note: If you signed in with Google, use Google sign-in above",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
-                }
             }
         }
         
@@ -287,7 +209,21 @@ fun ProfileScreen(
                     Text("Enable biometric authentication", color = TextSecondary)
                     Switch(
                         checked = userPreferences.biometricsEnabled,
-                        onCheckedChange = { viewModel.setBiometricsEnabled(it) }
+                        onCheckedChange = { 
+                            val activity = context as? androidx.fragment.app.FragmentActivity
+                            viewModel.setBiometricsEnabled(it, activity)
+                        }
+                    )
+                }
+                if (userPreferences.biometricsEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (currentUser?.provider == com.trailguide.android.data.model.AuthProvider.GOOGLE) 
+                            "Biometric login enabled for SSO account" 
+                        else 
+                            "Biometric login enabled",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
                     )
                 }
             }
