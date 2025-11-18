@@ -44,6 +44,11 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     
+    // Ensure previous auth results don't leak when switching between login/register
+    LaunchedEffect(Unit) {
+        viewModel.resetAuthState()
+    }
+    
     // Observe registration success (including Google SSO)
     LaunchedEffect(authenticatedUser) {
         authenticatedUser?.let { user ->

@@ -120,6 +120,17 @@ class AuthViewModel @Inject constructor(
     }
     
     /**
+     * Reset transient authentication results when returning to the auth flow.
+     * Prevents stale success state from re-triggering after logout.
+     */
+    fun resetAuthState() {
+        _authenticatedUser.value = null
+        _isAuthenticated.value = false
+        _errorMessage.value = null
+        _isLoading.value = false
+    }
+    
+    /**
      * Check if biometric authentication is available.
      */
     fun isBiometricAvailable(): Boolean {
@@ -168,7 +179,8 @@ class AuthViewModel @Inject constructor(
     fun storeBiometricCredentials(activity: FragmentActivity, email: String? = null, password: String? = null) {
         viewModelScope.launch {
             val userEmail = email ?: _email.value
-            val userPassword = password
+            val resolvedPassword = password ?: _password.value
+            val userPassword = resolvedPassword.takeIf { it.isNotBlank() }
             
             if (userEmail.isNotBlank()) {
                 authRepository.storeBiometricCredentials(activity, userEmail, userPassword).collect { result ->

@@ -206,8 +206,6 @@ class AuthRepository @Inject constructor(
                 Log.w(TAG, "No user session found, clearing local state")
             }
             
-            // Always clear biometric credentials and local state, regardless of API call success
-            clearBiometricCredentials()
             emit(NetworkResult.Success(Unit))
             
         } catch (e: Exception) {
@@ -224,8 +222,6 @@ class AuthRepository @Inject constructor(
                 Log.w(TAG, "Sign-out error, but clearing local state anyway: ${e.message}")
             }
             
-            // Always clear biometric credentials and local state, even on error
-            clearBiometricCredentials()
             emit(NetworkResult.Success(Unit))
         }
     }.flowOn(Dispatchers.IO)
@@ -345,18 +341,6 @@ class AuthRepository @Inject constructor(
                 return@flow
             }
             
-            // Authenticate with biometric
-            val authResult = biometricAuthManager.authenticateWithBiometric(
-                activity = activity,
-                title = "Sign in to TrailGuide",
-                subtitle = "Use your biometric to sign in"
-            )
-            
-            if (!authResult) {
-                emit(NetworkResult.Error("Biometric authentication failed"))
-                return@flow
-            }
-            
             // Retrieve stored credentials
             val credentials = biometricAuthManager.retrieveCredentialsWithBiometric(activity)
             
@@ -374,27 +358,11 @@ class AuthRepository @Inject constructor(
                     }
                 }
                 is com.trailguide.android.data.security.BiometricCredentials.SessionToken -> {
-                    // For SSO users, Supabase SDK should automatically persist and restore sessions
-                    // We just need to check if a valid session exists and refresh it if needed
                     try {
-                        val currentSession = supabaseClient.auth.currentSessionOrNull()
-                        if (currentSession == null) {
-                            // No active session - Supabase SDK should have restored it if it was valid
-                            // If not restored, the session has expired and user needs to sign in again
-                            emit(NetworkResult.Error("Session expired. Please sign in again."))
-                            return@flow
-                        } else {
-                            // Session exists, refresh it to ensure it's valid
-                            try {
-                                supabaseClient.auth.refreshCurrentSession()
-                            } catch (e: Exception) {
-                                // Refresh failed - session might be expired
-                                // Try to continue anyway as the session might still be valid
-                                Log.w(TAG, "Session refresh failed, but continuing: ${e.message}")
-                            }
-                        }
+                        // Use stored refresh token to mint a new session even after full sign out
+                        supabaseClient.auth.refreshSession(credentials.refreshToken)
                     } catch (e: Exception) {
-                        emit(NetworkResult.Error("Biometric authentication failed: ${e.message}"))
+                        emit(NetworkResult.Error("Stored session expired. Please sign in again."))
                         return@flow
                     }
                 }
