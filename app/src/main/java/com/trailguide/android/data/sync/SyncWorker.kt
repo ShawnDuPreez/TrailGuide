@@ -6,11 +6,19 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.trailguide.android.data.local.*
+import com.trailguide.android.data.remote.ApiClient
+import com.trailguide.android.data.remote.SyncApiService
+import com.trailguide.android.data.remote.SyncFavourite
+import com.trailguide.android.data.remote.SyncReview
+import com.trailguide.android.data.remote.SyncActivity
+import com.trailguide.android.data.remote.SyncRequest
 import com.trailguide.android.data.repository.AuthRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * WorkManager worker for syncing local Room data with Supabase backend.
@@ -23,6 +31,11 @@ class SyncWorker @AssistedInject constructor(
     private val database: TrailDatabase,
     private val authRepository: AuthRepository
 ) : CoroutineWorker(appContext, workerParams) {
+    
+    private val syncApiService: SyncApiService = ApiClient.syncApiService
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
     
     companion object {
         const val TAG = "SyncWorker"
@@ -44,17 +57,22 @@ class SyncWorker @AssistedInject constructor(
                 return@withContext Result.failure()
             }
             
-            // Sync favorites
-            syncFavorites(userId)
+            // Get auth token for API calls
+            val authToken = ApiClient.authToken
+            if (authToken == null) {
+                Log.w(TAG, "No auth token available, skipping sync")
+                return@withContext Result.failure()
+            }
             
-            // Sync trail progress
-            syncTrailProgress(userId)
+            // Collect all pending data
+            val pendingReviews = collectPendingReviews(userId)
+            val pendingFavourites = collectPendingFavourites(userId)
+            val pendingActivities = collectPendingActivities(userId)
             
-            // Sync reviews
-            syncReviews(userId)
-            
-            // Sync collections
-            syncCollections(userId)
+            // Sync all data in one API call
+            if (pendingReviews.isNotEmpty() || pendingFavourites.isNotEmpty() || pendingActivities.isNotEmpty()) {
+                syncAllData(pendingReviews, pendingFavourites, pendingActivities, userId)
+            }
             
             Log.d(TAG, "Sync completed successfully")
             Result.success()
@@ -72,159 +90,228 @@ class SyncWorker @AssistedInject constructor(
     }
     
     /**
-     * Sync favorite trails with backend.
+     * Collect pending reviews for sync.
      */
-    private suspend fun syncFavorites(userId: String) {
+    private suspend fun collectPendingReviews(userId: String): List<SyncReview> {
+        val reviewDao = database.reviewDao()
+        val allReviews = reviewDao.getAllReviews()
+        val userReviews = allReviews.filter { 
+            it.userId == userId && 
+            (it.syncStatus == SyncStatus.PENDING.name || it.syncStatus == SyncStatus.FAILED.name)
+        }
+        
+        return userReviews.map { review ->
+            SyncReview(
+                trail_id = review.trailId,
+                user_name = review.userName,
+                rating = review.rating,
+                comment = review.comment,
+                photos = review.photos,
+                created_at = if (review.createdAt > 0) {
+                    dateFormat.format(Date(review.createdAt))
+                } else null
+            )
+        }
+    }
+    
+    /**
+     * Collect pending favourites for sync.
+     */
+    private suspend fun collectPendingFavourites(userId: String): List<SyncFavourite> {
+        val favoriteDao = database.favoriteTrailDao()
+        val pendingFavorites = favoriteDao.getFavoritesByStatuses(
+            listOf(SyncStatus.PENDING.name, SyncStatus.FAILED.name)
+        )
+        
+        return pendingFavorites.map { favorite ->
+            SyncFavourite(
+                trail_id = favorite.trailId,
+                created_at = if (favorite.addedAt > 0) {
+                    dateFormat.format(Date(favorite.addedAt))
+                } else null
+            )
+        }
+    }
+    
+    /**
+     * Collect pending activities (trail progress/completions) for sync.
+     */
+    private suspend fun collectPendingActivities(userId: String): List<SyncActivity> {
+        val progressDao = database.trailProgressDao()
+        val pendingProgress = progressDao.getProgressByStatuses(
+            listOf(SyncStatus.PENDING.name, SyncStatus.FAILED.name)
+        )
+        
+        return pendingProgress.filter { it.isCompleted }.map { progress ->
+            SyncActivity(
+                trail_id = progress.trailId,
+                duration_minutes = if (progress.startedAt > 0 && progress.completedAt != null) {
+                    ((progress.completedAt - progress.startedAt) / 60000).toInt()
+                } else null,
+                distance_km = progress.distanceCoveredKm,
+                completed_at = progress.completedAt?.let { dateFormat.format(Date(it)) }
+            )
+        }
+    }
+    
+    /**
+     * Sync all data to the backend API.
+     */
+    private suspend fun syncAllData(
+        reviews: List<SyncReview>,
+        favourites: List<SyncFavourite>,
+        activities: List<SyncActivity>,
+        userId: String
+    ) {
         try {
-            val favoriteDao = database.favoriteTrailDao()
+            Log.d(TAG, "Syncing ${reviews.size} reviews, ${favourites.size} favourites, ${activities.size} activities")
             
-            // Get all favorites that need syncing
-            val pendingFavorites = favoriteDao.getFavoritesByStatuses(
-                listOf(SyncStatus.PENDING.name, SyncStatus.FAILED.name)
+            // Mark all items as syncing
+            markItemsAsSyncing(reviews, favourites, activities, userId)
+            
+            // Call sync API
+            val request = SyncRequest(
+                reviews = if (reviews.isNotEmpty()) reviews else null,
+                favourites = if (favourites.isNotEmpty()) favourites else null,
+                activities = if (activities.isNotEmpty()) activities else null
             )
             
-            Log.d(TAG, "Syncing ${pendingFavorites.size} favorites")
+            val response = syncApiService.syncOfflineData(request)
             
-            for (favorite in pendingFavorites) {
-                try {
-                    // Mark as syncing
-                    favoriteDao.updateFavorite(favorite.markSyncing())
-                    
-                    // TODO: Sync with Supabase API
-                    // For now, just mark as synced
-                    
-                    // Mark as synced
-                    favoriteDao.updateFavorite(favorite.markSynced())
-                    
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync favorite ${favorite.id}", e)
-                    favoriteDao.updateFavorite(favorite.markSyncFailed())
+            if (response.isSuccessful && response.body() != null) {
+                val syncResponse = response.body()!!
+                Log.d(TAG, "Sync response: ${syncResponse.reviews_synced} reviews, ${syncResponse.favourites_synced} favourites, ${syncResponse.activities_synced} activities")
+                
+                // Mark synced items
+                markItemsAsSynced(reviews, favourites, activities, userId)
+                
+                // Handle errors
+                if (syncResponse.errors.isNotEmpty()) {
+                    Log.w(TAG, "Sync completed with ${syncResponse.errors.size} errors")
+                    syncResponse.errors.forEach { error ->
+                        Log.w(TAG, "Sync error: ${error.type} - ${error.error}")
+                    }
                 }
+            } else {
+                Log.e(TAG, "Sync API call failed: ${response.code()} ${response.message()}")
+                markItemsAsFailed(reviews, favourites, activities, userId)
+                throw Exception("Sync failed: ${response.code()}")
             }
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error syncing favorites", e)
+            Log.e(TAG, "Error during sync", e)
+            markItemsAsFailed(reviews, favourites, activities, userId)
             throw e
         }
     }
     
     /**
-     * Sync trail progress with backend.
+     * Mark items as syncing.
      */
-    private suspend fun syncTrailProgress(userId: String) {
-        try {
-            val progressDao = database.trailProgressDao()
-            
-            // Get all progress that needs syncing
-            val pendingProgress = progressDao.getProgressByStatuses(
+    private suspend fun markItemsAsSyncing(
+        reviews: List<SyncReview>,
+        favourites: List<SyncFavourite>,
+        activities: List<SyncActivity>,
+        userId: String
+    ) {
+        val reviewDao = database.reviewDao()
+        val favoriteDao = database.favoriteTrailDao()
+        val progressDao = database.trailProgressDao()
+        
+        reviews.forEach { review ->
+            val entity = reviewDao.getAllReviews().find { 
+                it.trailId == review.trail_id && it.userId == userId 
+            }
+            entity?.let { reviewDao.insertReview(it.copy(syncStatus = SyncStatus.SYNCING.name)) }
+        }
+        
+        favourites.forEach { fav ->
+            val entity = favoriteDao.getFavoritesByStatuses(
                 listOf(SyncStatus.PENDING.name, SyncStatus.FAILED.name)
-            )
-            
-            Log.d(TAG, "Syncing ${pendingProgress.size} progress items")
-            
-            for (progress in pendingProgress) {
-                try {
-                    // Mark as syncing
-                    progressDao.updateProgress(progress.markSyncing())
-                    
-                    // TODO: Sync with Supabase API
-                    // For now, just mark as synced
-                    
-                    // Mark as synced
-                    progressDao.updateProgress(progress.markSynced())
-                    
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync progress ${progress.id}", e)
-                    progressDao.updateProgress(progress.markSyncFailed())
-                }
-            }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing trail progress", e)
-            throw e
+            ).find { it.trailId == fav.trail_id && it.userId == userId }
+            entity?.let { favoriteDao.updateFavorite(it.markSyncing()) }
+        }
+        
+        activities.forEach { activity ->
+            val entity = progressDao.getProgressByStatuses(
+                listOf(SyncStatus.PENDING.name, SyncStatus.FAILED.name)
+            ).find { it.trailId == activity.trail_id && it.userId == userId && it.isCompleted }
+            entity?.let { progressDao.updateProgress(it.markSyncing()) }
         }
     }
     
     /**
-     * Sync reviews with backend.
+     * Mark items as synced.
      */
-    private suspend fun syncReviews(userId: String) {
-        try {
-            val reviewDao = database.reviewDao()
-            
-            // Get all reviews for this user
-            val allReviews = reviewDao.getAllReviews()
-            val userReviews = allReviews.filter { 
-                it.userId == userId && 
-                (it.syncStatus == SyncStatus.PENDING.name || it.syncStatus == SyncStatus.FAILED.name)
+    private suspend fun markItemsAsSynced(
+        reviews: List<SyncReview>,
+        favourites: List<SyncFavourite>,
+        activities: List<SyncActivity>,
+        userId: String
+    ) {
+        val reviewDao = database.reviewDao()
+        val favoriteDao = database.favoriteTrailDao()
+        val progressDao = database.trailProgressDao()
+        
+        reviews.forEach { review ->
+            val entity = reviewDao.getAllReviews().find { 
+                it.trailId == review.trail_id && it.userId == userId 
             }
-            
-            Log.d(TAG, "Syncing ${userReviews.size} reviews")
-            
-            for (review in userReviews) {
-                try {
-                    // Mark as syncing
-                    reviewDao.insertReview(review.copy(syncStatus = SyncStatus.SYNCING.name))
-                    
-                    // TODO: Sync with Supabase API
-                    // For now, just mark as synced
-                    
-                    // Mark as synced
-                    reviewDao.insertReview(review.copy(
-                        syncStatus = SyncStatus.SYNCED.name,
-                        lastSyncedAt = System.currentTimeMillis()
-                    ))
-                    
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync review ${review.id}", e)
-                    reviewDao.insertReview(review.copy(syncStatus = SyncStatus.FAILED.name))
-                }
+            entity?.let { 
+                reviewDao.insertReview(it.copy(
+                    syncStatus = SyncStatus.SYNCED.name,
+                    lastSyncedAt = System.currentTimeMillis()
+                ))
             }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing reviews", e)
-            throw e
+        }
+        
+        favourites.forEach { fav ->
+            val entity = favoriteDao.getFavoritesByStatuses(
+                listOf(SyncStatus.SYNCING.name)
+            ).find { it.trailId == fav.trail_id && it.userId == userId }
+            entity?.let { favoriteDao.updateFavorite(it.markSynced()) }
+        }
+        
+        activities.forEach { activity ->
+            val entity = progressDao.getProgressByStatuses(
+                listOf(SyncStatus.SYNCING.name)
+            ).find { it.trailId == activity.trail_id && it.userId == userId && it.isCompleted }
+            entity?.let { progressDao.updateProgress(it.markSynced()) }
         }
     }
     
     /**
-     * Sync collections with backend.
+     * Mark items as failed.
      */
-    private suspend fun syncCollections(userId: String) {
-        try {
-            val collectionDao = database.collectionDao()
-            
-            // Get all collections
-            val allCollections = collectionDao.getAllCollections()
-            val pendingCollections = allCollections.filter {
-                it.syncStatus == SyncStatus.PENDING.name || it.syncStatus == SyncStatus.FAILED.name
+    private suspend fun markItemsAsFailed(
+        reviews: List<SyncReview>,
+        favourites: List<SyncFavourite>,
+        activities: List<SyncActivity>,
+        userId: String
+    ) {
+        val reviewDao = database.reviewDao()
+        val favoriteDao = database.favoriteTrailDao()
+        val progressDao = database.trailProgressDao()
+        
+        reviews.forEach { review ->
+            val entity = reviewDao.getAllReviews().find { 
+                it.trailId == review.trail_id && it.userId == userId 
             }
-            
-            Log.d(TAG, "Syncing ${pendingCollections.size} collections")
-            
-            for (collection in pendingCollections) {
-                try {
-                    // Mark as syncing
-                    collectionDao.insertCollection(collection.copy(syncStatus = SyncStatus.SYNCING.name))
-                    
-                    // TODO: Sync with Supabase API
-                    // For now, just mark as synced
-                    
-                    // Mark as synced
-                    collectionDao.insertCollection(collection.copy(
-                        syncStatus = SyncStatus.SYNCED.name,
-                        lastSyncedAt = System.currentTimeMillis()
-                    ))
-                    
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to sync collection ${collection.id}", e)
-                    collectionDao.insertCollection(collection.copy(syncStatus = SyncStatus.FAILED.name))
-                }
-            }
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error syncing collections", e)
-            throw e
+            entity?.let { reviewDao.insertReview(it.copy(syncStatus = SyncStatus.FAILED.name)) }
+        }
+        
+        favourites.forEach { fav ->
+            val entity = favoriteDao.getFavoritesByStatuses(
+                listOf(SyncStatus.SYNCING.name)
+            ).find { it.trailId == fav.trail_id && it.userId == userId }
+            entity?.let { favoriteDao.updateFavorite(it.markSyncFailed()) }
+        }
+        
+        activities.forEach { activity ->
+            val entity = progressDao.getProgressByStatuses(
+                listOf(SyncStatus.SYNCING.name)
+            ).find { it.trailId == activity.trail_id && it.userId == userId && it.isCompleted }
+            entity?.let { progressDao.updateProgress(it.markSyncFailed()) }
         }
     }
 }

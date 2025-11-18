@@ -85,5 +85,12 @@ object ApiClient {
     val authApiService: AuthApiService by lazy {
         retrofit.create(AuthApiService::class.java)
     }
+    
+    /**
+     * Sync API service instance.
+     */
+    val syncApiService: SyncApiService by lazy {
+        retrofit.create(SyncApiService::class.java)
+    }
 }
 

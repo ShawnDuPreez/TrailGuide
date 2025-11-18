@@ -24,6 +24,10 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.handleDeeplinks
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import javax.inject.Inject
 
 /**
@@ -108,7 +112,19 @@ class MainActivity : ComponentActivity() {
     
     override fun attachBaseContext(newBase: Context) {
         // Apply saved language preference when activity is created
-        super.attachBaseContext(newBase)
+        // Use blocking read from DataStore (only called during initialization)
+        val languageCode = try {
+            runBlocking {
+                val Context.dataStore by preferencesDataStore("user_preferences")
+                val prefs = newBase.dataStore.data.first()
+                prefs[stringPreferencesKey("language")] ?: "en"
+            }
+        } catch (e: Exception) {
+            // Fallback to default if DataStore not available yet
+            "en"
+        }
+        val contextWithLocale = LocaleHelper.setLocale(newBase, languageCode)
+        super.attachBaseContext(contextWithLocale)
     }
     
     override fun onNewIntent(intent: Intent) {
