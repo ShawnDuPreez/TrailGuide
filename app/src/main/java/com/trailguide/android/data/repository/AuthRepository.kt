@@ -285,6 +285,7 @@ class AuthRepository @Inject constructor(
      * Store user credentials securely using biometric authentication.
      * For email/password users, stores email and password.
      * For SSO users, stores the refresh token.
+     * Reference: Source, A., 2025. Biometrics. https://source.android.com/docs/security/features/biometric
      * @param activity FragmentActivity needed for biometric prompt
      * @param email User's email (for email/password users)
      * @param password User's password (for email/password users, null for SSO)

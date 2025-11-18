@@ -50,6 +50,8 @@ fun AuthWrapper(
     // This ensures instant redirect when sign out happens
     // No delay needed - state is already cleared synchronously in signOut()
     // The when statement below will react immediately to the state change
+    // Reference: Developers, G., 2025. State and Jetpack Compose. https://developer.android.com/develop/ui/compose/state
+    // Reference: Kumar, M., 2024. Jetpack Compose : State Management. https://medium.com/@manishkumar_75473/jetpack-compose-state-management-part-1-7d2b4d980455
     
     // Check if biometric gate is required
     val requiresBiometricGate = isAuthenticated && 
@@ -78,6 +80,7 @@ fun AuthWrapper(
             
             val biometricManager = BiometricAuthenticationManager(context)
             
+            // Reference: Source, A., 2025. Biometrics. https://source.android.com/docs/security/features/biometric
             try {
                 // Check if biometric is available first
                 if (!biometricManager.canUseBiometric()) {

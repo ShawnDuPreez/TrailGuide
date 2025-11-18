@@ -34,7 +34,8 @@ A comprehensive Android application demonstrating modern mobile development prac
     - [Technical Implementation Summary](#4-technical-implementation-summary)
     - [Project Statistics and Metrics](#5-project-statistics-and-metrics)
     - [Conclusion](#6-conclusion)
-14. [Support & Contact](#support--contact)
+14. [References](#references)
+15. [Support & Contact](#support--contact)
 
 ---
 
@@ -1020,6 +1021,58 @@ The utilization of GitHub and GitHub Actions ensures:
 - **Efficiency**: Automated processes save time and reduce errors
 
 This project serves as both a functional application for users and a comprehensive reference implementation for developers learning modern Android development practices.
+
+---
+
+## References
+
+Ambitions, C., 2025. Kotlin Full Course | Kotlin For Beginners | Kotlin For Android KMP | Kotlin Tutorial 2025. [Online] 
+
+Available at: https://www.youtube.com/watch?v=8uEYI6lTGps&ab_channel=CodingAmbitions
+
+[Accessed 5 April 2025].
+
+Android, D., 2025. Develop for Android. [Online] 
+
+Available at: https://developer.android.com/develop#core-areas
+
+[Accessed 21 August 2025].
+
+API, S. M. i. R. –. v. t. C., 2023. David Jaja. [Online] 
+
+Available at: https://www.freecodecamp.org/news/state-management-in-react-props-vs-context-api/
+
+[Accessed 22 August 2025].
+
+Chengcheng Wan, S. L., 2022. Automated testing of software that uses machine learning APIs. [Online] 
+
+Available at: https://dl.acm.org/doi/abs/10.1145/3510003.3510068
+
+[Accessed 31 March 2025].
+
+Developers, G., 2025. State and Jetpack Compose. [Online] 
+
+Available at: https://developer.android.com/develop/ui/compose/state
+
+[Accessed 10 November 2025].
+
+Kumar, M., 2024. Jetpack Compose : State Management. [Online] 
+
+Available at: https://medium.com/@manishkumar_75473/jetpack-compose-state-management-part-1-7d2b4d980455
+
+[Accessed 11 November 2025].
+
+Platform, G. M., 2025. Maps SDK for Android Quickstart. [Online] 
+
+Available at: https://developers.google.com/maps/documentation/android-sdk/start
+
+[Accessed 21 August 2025].
+
+Source, A., 2025. Biometrics. [Online] 
+
+Available at: https://source.android.com/docs/security/features/biometric
+
+[Accessed 11 November 2025].
 
 ---
 

@@ -42,6 +42,7 @@ import kotlin.math.*
 /**
  * Hiking screen with GPS navigation, timer, and elevation tracking.
  * Similar to Google Maps navigation but designed for hiking.
+ * Reference: Platform, G. M., 2025. Maps SDK for Android Quickstart. https://developers.google.com/maps/documentation/android-sdk/start
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

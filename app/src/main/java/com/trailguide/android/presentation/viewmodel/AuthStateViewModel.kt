@@ -109,10 +109,12 @@ class AuthStateViewModel @Inject constructor(
     /**
      * Sign out the user and clear authentication state.
      * Always clears local state immediately, even if API call fails.
+     * Reference: Developers, G., 2025. State and Jetpack Compose. https://developer.android.com/develop/ui/compose/state
      */
     fun signOut() {
         // Clear state immediately to ensure logout happens right away
         // This ensures the UI updates immediately and user is redirected to login
+        // Reference: Kumar, M., 2024. Jetpack Compose : State Management. https://medium.com/@manishkumar_75473/jetpack-compose-state-management-part-1-7d2b4d980455
         _isAuthenticated.value = false
         _currentUser.value = null
         _authError.value = null

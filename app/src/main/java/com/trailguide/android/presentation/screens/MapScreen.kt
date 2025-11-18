@@ -29,6 +29,7 @@ import com.trailguide.android.presentation.viewmodel.TrailsViewModel
 /**
  * Map screen displaying trail locations using Google Maps.
  * Shows trails as markers with routes (polylines) when available.
+ * Reference: Platform, G. M., 2025. Maps SDK for Android Quickstart. https://developers.google.com/maps/documentation/android-sdk/start
  */
 @Composable
 fun MapScreen(

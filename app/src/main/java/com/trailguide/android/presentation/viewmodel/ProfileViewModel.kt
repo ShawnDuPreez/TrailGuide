@@ -293,6 +293,7 @@ class ProfileViewModel @Inject constructor(
     /**
      * Update biometrics enabled preference.
      * If enabling, also stores biometric credentials (email/password for email users, session token for SSO users).
+     * Reference: Source, A., 2025. Biometrics. https://source.android.com/docs/security/features/biometric
      */
     fun setBiometricsEnabled(enabled: Boolean, activity: androidx.fragment.app.FragmentActivity? = null) {
         viewModelScope.launch {
