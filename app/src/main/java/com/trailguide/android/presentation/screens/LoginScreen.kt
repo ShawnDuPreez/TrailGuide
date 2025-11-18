@@ -47,26 +47,16 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var showBiometricDialog by remember { mutableStateOf(false) }
     
-    // Check biometric availability
-    val isBiometricAvailable = remember { viewModel.isBiometricAvailable() }
-    // Make hasBiometricCredentials reactive - check it dynamically instead of using remember
-    var hasBiometricCredentials by remember { mutableStateOf(viewModel.hasBiometricCredentials()) }
+    var hasBiometricCredentials by remember { mutableStateOf(false) }
     
-    // Refresh hasBiometricCredentials when the screen is visible or when credentials might have changed
+    // Clear stale auth state and refresh biometric availability when entering screen
     LaunchedEffect(Unit) {
-        // Check credentials periodically or when screen becomes visible
+        viewModel.resetAuthState()
         hasBiometricCredentials = viewModel.hasBiometricCredentials()
     }
     
-    // Also check when user might have enabled biometric login (e.g., after returning from settings)
-    DisposableEffect(Unit) {
-        val checkCredentials = {
-            hasBiometricCredentials = viewModel.hasBiometricCredentials()
-        }
-        // Check immediately and set up a way to refresh
-        checkCredentials()
-        onDispose { }
-    }
+    // Check biometric availability (doesn't change often so keep simple)
+    val isBiometricAvailable = remember { viewModel.isBiometricAvailable() }
     
     // Observe login success
     LaunchedEffect(authenticatedUser) {
@@ -105,7 +95,38 @@ fun LoginScreen(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        if (isBiometricAvailable) {
+            ElevatedButton(
+                onClick = {
+                    if (context is FragmentActivity) {
+                        hasBiometricCredentials = viewModel.hasBiometricCredentials()
+                        viewModel.loginWithBiometric(context)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                enabled = !isLoading
+            ) {
+                Icon(Icons.Default.Fingerprint, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Login with Biometrics")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            val biometricStatusText = if (hasBiometricCredentials) {
+                "Use your stored biometric credentials for quick access."
+            } else {
+                "Enable biometric login from your profile to unlock with one tap."
+            }
+            Text(
+                biometricStatusText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
         
         // Email field
         OutlinedTextField(
@@ -223,36 +244,6 @@ fun LoginScreen(
             }
         }
         
-        // Biometric login button (if available and credentials stored)
-        // Check credentials dynamically when button is clicked
-        if (isBiometricAvailable) {
-            // Check credentials each time this composable recomposes
-            val currentHasCredentials = viewModel.hasBiometricCredentials()
-            if (currentHasCredentials || hasBiometricCredentials) {
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                OutlinedButton(
-                    onClick = { 
-                        if (context is FragmentActivity) {
-                            // Refresh credentials check before attempting login
-                            hasBiometricCredentials = viewModel.hasBiometricCredentials()
-                            if (hasBiometricCredentials) {
-                                viewModel.loginWithBiometric(context)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    enabled = !isLoading
-                ) {
-                    Icon(Icons.Default.Fingerprint, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Login with Biometric")
-                }
-            }
-        }
-        
         Spacer(modifier = Modifier.height(16.dp))
         
         // Divider
@@ -309,7 +300,7 @@ fun LoginScreen(
                 Button(
                     onClick = {
                         if (context is FragmentActivity) {
-                            viewModel.storeBiometricCredentials(context)
+                            viewModel.storeBiometricCredentials(context, password = password)
                         }
                         showBiometricDialog = false
                     }

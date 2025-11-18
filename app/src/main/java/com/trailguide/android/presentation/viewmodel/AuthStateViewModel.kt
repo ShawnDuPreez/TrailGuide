@@ -75,21 +75,18 @@ class AuthStateViewModel @Inject constructor(
                         _isAuthenticated.value = false
                         _currentUser.value = null
                         _biometricGatePassed.value = false
-                        preferencesRepository.clearPreferences()
                     }
                 } else {
                     // No active session - ensure we're signed out
                     _isAuthenticated.value = false
                     _currentUser.value = null
                     _biometricGatePassed.value = false
-                    preferencesRepository.clearPreferences()
                 }
             } catch (e: Exception) {
                 _authError.value = "Authentication check failed: ${e.message}"
                 _isAuthenticated.value = false
                 _currentUser.value = null
                 _biometricGatePassed.value = false
-                preferencesRepository.clearPreferences()
             } finally {
                 _isLoading.value = false
             }
@@ -121,11 +118,6 @@ class AuthStateViewModel @Inject constructor(
         _authError.value = null
         _biometricGatePassed.value = false
         _isLoading.value = false
-        
-        // Clear user preferences immediately
-        viewModelScope.launch {
-            preferencesRepository.clearPreferences()
-        }
         
         // Also try to sign out from Supabase in the background (non-blocking)
         // This doesn't block the UI update since state is already cleared above
