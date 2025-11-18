@@ -60,7 +60,7 @@ class TrailProgressDaoTest {
         val retrieved = progressDao.getProgressById("prog1")
         assertNotNull(retrieved)
         assertEquals(50, retrieved?.progressPercent)
-        assertEquals(5.0, retrieved?.distanceCoveredKm, 0.01)
+        assertEquals(5.0, retrieved?.distanceCoveredKm ?: 0.0, 0.01)
     }
     
     @Test
@@ -160,15 +160,39 @@ class TrailProgressDaoTest {
         
         val retrieved = progressDao.getProgressById("prog1")
         assertEquals(75, retrieved?.progressPercent)
-        assertEquals(7.5, retrieved?.distanceCoveredKm, 0.01)
+        assertEquals(7.5, retrieved?.distanceCoveredKm ?: 0.0, 0.01)
     }
     
     @Test
     fun `get completed trail count`() = runTest {
         val progresses = listOf(
-            TrailProgressEntity("prog1", "user1", "trail1", 100, 10.0, System.currentTimeMillis(), completedAt = System.currentTimeMillis()),
-            TrailProgressEntity("prog2", "user1", "trail2", 100, 8.0, System.currentTimeMillis(), completedAt = System.currentTimeMillis()),
-            TrailProgressEntity("prog3", "user1", "trail3", 50, 5.0, System.currentTimeMillis(), completedAt = null)
+            TrailProgressEntity(
+                id = "prog1",
+                userId = "user1",
+                trailId = "trail1",
+                progressPercent = 100,
+                distanceCoveredKm = 10.0,
+                startedAt = System.currentTimeMillis(),
+                completedAt = System.currentTimeMillis()
+            ),
+            TrailProgressEntity(
+                id = "prog2",
+                userId = "user1",
+                trailId = "trail2",
+                progressPercent = 100,
+                distanceCoveredKm = 8.0,
+                startedAt = System.currentTimeMillis(),
+                completedAt = System.currentTimeMillis()
+            ),
+            TrailProgressEntity(
+                id = "prog3",
+                userId = "user1",
+                trailId = "trail3",
+                progressPercent = 50,
+                distanceCoveredKm = 5.0,
+                startedAt = System.currentTimeMillis(),
+                completedAt = null
+            )
         )
         
         progressDao.insertProgressList(progresses)

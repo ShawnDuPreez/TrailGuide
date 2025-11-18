@@ -2,18 +2,26 @@ package com.trailguide.android.repository
 
 import com.trailguide.android.data.dto.TrailDto
 import com.trailguide.android.data.local.DownloadedTrailDao
+import com.trailguide.android.data.local.FavoriteTrailDao
 import com.trailguide.android.data.remote.NetworkResult
 import com.trailguide.android.data.remote.TrailApiService
 import com.trailguide.android.data.repository.TrailRepository
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.AuthKt
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
+import org.mockito.MockedStatic
 import org.mockito.Mockito.*
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import retrofit2.Response
 import kotlin.test.assertEquals
@@ -31,9 +39,17 @@ class TrailRepositoryTest {
     
     @Mock
     private lateinit var downloadedTrailDao: DownloadedTrailDao
-    ]]
+    
+    @Mock
+    private lateinit var favoriteTrailDao: FavoriteTrailDao
+    
     @Mock
     private lateinit var supabaseClient: SupabaseClient
+    
+    @Mock
+    private lateinit var auth: Auth
+    
+    private lateinit var authMock: MockedStatic<AuthKt>
     
     private lateinit var repository: TrailRepository
     
@@ -55,7 +71,15 @@ class TrailRepositoryTest {
     @Before
     fun setup() {
         MockitoAnnotations.openMocks(this)
-        repository = TrailRepository(apiService, downloadedTrailDao, supabaseClient)
+        authMock = mockStatic(AuthKt::class.java)
+        authMock.`when` { AuthKt.getAuth(supabaseClient) }.thenReturn(auth)
+        whenever(auth.currentUserOrNull()).thenReturn(null)
+        repository = TrailRepository(apiService, downloadedTrailDao, favoriteTrailDao, supabaseClient)
+    }
+    
+    @After
+    fun tearDown() {
+        authMock.close()
     }
     
     @Test
@@ -63,11 +87,11 @@ class TrailRepositoryTest {
         // Given
         val response = Response.success(listOf(mockTrailDto))
         whenever(apiService.getAllTrails()).thenReturn(response)
-        whenever(apiService.getFavoriteTrails(any())).thenReturn(Response.success(emptyList()))
+        whenever(apiService.getFavoriteTrails(any<String>())).thenReturn(Response.success(emptyList()))
         
         // When
         val flow = repository.getAllTrails()
-        val result = flow.first()
+        val result = flow.drop(1).first()
         
         // Then
         assertTrue(result is NetworkResult.Success)
@@ -83,11 +107,11 @@ class TrailRepositoryTest {
             okhttp3.ResponseBody.create(null, "Not found")
         )
         whenever(apiService.getAllTrails()).thenReturn(errorResponse)
-        whenever(apiService.getFavoriteTrails(any())).thenReturn(Response.success(emptyList()))
+        whenever(apiService.getFavoriteTrails(any<String>())).thenReturn(Response.success(emptyList()))
         
         // When
         val flow = repository.getAllTrails()
-        val result = flow.first()
+        val result = flow.drop(1).first()
         
         // Then
         assertTrue(result is NetworkResult.Error)
@@ -102,7 +126,7 @@ class TrailRepositoryTest {
         
         // When
         val flow = repository.getTrailById("1")
-        val result = flow.first()
+        val result = flow.drop(1).first()
         
         // Then
         assertTrue(result is NetworkResult.Success)
@@ -128,7 +152,7 @@ class TrailRepositoryTest {
             difficulty = com.trailguide.android.data.model.Difficulty.MODERATE,
             maxDistance = 15.0
         )
-        val result = flow.first()
+        val result = flow.drop(1).first()
         
         // Then
         assertTrue(result is NetworkResult.Success)

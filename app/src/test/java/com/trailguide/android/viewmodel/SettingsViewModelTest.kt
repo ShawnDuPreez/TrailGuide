@@ -5,11 +5,14 @@ import com.trailguide.android.data.datastore.SecureSessionStore
 import com.trailguide.android.data.datastore.UserPreferences
 import com.trailguide.android.data.repository.AuthRepository
 import com.trailguide.android.data.security.BiometricAuthenticationManager
+import com.trailguide.android.data.security.BiometricStorageService
 import com.trailguide.android.data.sync.SyncScheduler
 import com.trailguide.android.presentation.viewmodel.SettingsViewModel
+import io.github.jan.supabase.gotrue.user.UserInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Before
@@ -18,6 +21,7 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -47,7 +51,13 @@ class SettingsViewModelTest {
     private lateinit var biometricAuthManager: BiometricAuthenticationManager
     
     @Mock
+    private lateinit var biometricStorageService: BiometricStorageService
+    
+    @Mock
     private lateinit var syncScheduler: SyncScheduler
+    
+    @Mock
+    private lateinit var supabaseUser: UserInfo
     
     private lateinit var viewModel: SettingsViewModel
     
@@ -65,12 +75,22 @@ class SettingsViewModelTest {
         whenever(userPreferences.newTrailsFlow).thenReturn(flowOf(true))
         whenever(userPreferences.themeModeFlow).thenReturn(flowOf(UserPreferences.THEME_SYSTEM))
         whenever(biometricAuthManager.canUseBiometric()).thenReturn(true)
+        whenever(authRepository.currentUser).thenReturn(supabaseUser)
+        whenever(supabaseUser.email).thenReturn("test@example.com")
+        runBlocking {
+            whenever(biometricStorageService.isBiometricEnabled(any<String>())).thenReturn(false)
+            whenever(biometricStorageService.setBiometricEnabled(any<String>(), any())).thenReturn(Unit)
+        }
+        runBlocking {
+            whenever(syncScheduler.isSyncRunning()).thenReturn(false)
+        }
         
         viewModel = SettingsViewModel(
             userPreferences,
             secureSessionStore,
             authRepository,
             biometricAuthManager,
+            biometricStorageService,
             syncScheduler
         )
     }
@@ -107,6 +127,7 @@ class SettingsViewModelTest {
         viewModel.setBiometricEnabled(false)
         advanceUntilIdle()
         
+        verify(biometricStorageService).setBiometricEnabled("test@example.com", false)
         verify(userPreferences).setBiometricEnabled(false)
         verify(secureSessionStore).setBiometricEnabled(false)
         verify(authRepository).clearBiometricCredentials()
@@ -117,6 +138,7 @@ class SettingsViewModelTest {
         viewModel.setBiometricEnabled(true)
         advanceUntilIdle()
         
+        verify(biometricStorageService).setBiometricEnabled("test@example.com", true)
         verify(userPreferences).setBiometricEnabled(true)
         verify(secureSessionStore).setBiometricEnabled(true)
         verify(authRepository, never()).clearBiometricCredentials()

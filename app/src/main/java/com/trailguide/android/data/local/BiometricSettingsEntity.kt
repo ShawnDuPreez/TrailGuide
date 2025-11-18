@@ -10,9 +10,26 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "biometric_settings")
 data class BiometricSettingsEntity(
     @PrimaryKey
-    val email: String, // Normalized lowercase email as primary key
+    val email: String,
     val biometricEnabled: Boolean,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
-)
+    val createdAt: Long,
+    val updatedAt: Long
+) {
+    companion object {
+        fun create(
+            email: String,
+            biometricEnabled: Boolean,
+            createdAt: Long = System.currentTimeMillis(),
+            updatedAt: Long = System.currentTimeMillis()
+        ): BiometricSettingsEntity {
+            val normalizedEmail = email.trim().lowercase()
+            return BiometricSettingsEntity(
+                email = normalizedEmail,
+                biometricEnabled = biometricEnabled,
+                createdAt = createdAt,
+                updatedAt = updatedAt
+            )
+        }
+    }
+}
 

@@ -148,6 +148,7 @@ object AppModule {
      * Provides Biometric Settings DAO.
      */
     @Provides
+    @Singleton
     fun provideBiometricSettingsDao(
         database: TrailDatabase
     ): com.trailguide.android.data.local.BiometricSettingsDao {

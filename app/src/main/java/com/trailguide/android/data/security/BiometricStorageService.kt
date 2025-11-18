@@ -6,8 +6,9 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.trailguide.android.data.local.BiometricSettingsDao
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,6 +59,10 @@ class BiometricStorageService @Inject constructor(
     private val regularPrefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
+    
+    private val migrationMutex = Mutex()
+    @Volatile
+    private var biometricPrefsMigrated = false
     
     /**
      * Save encrypted credentials by email (simplified - no userId lookup needed).
@@ -128,6 +133,7 @@ class BiometricStorageService @Inject constructor(
      */
     suspend fun isBiometricEnabled(email: String): Boolean {
         val normalizedEmail = email.trim().lowercase()
+        ensureBiometricSettingsMigration()
         return biometricSettingsDao.getBiometricEnabledSync(normalizedEmail) ?: false
     }
     
@@ -138,6 +144,7 @@ class BiometricStorageService @Inject constructor(
     fun isBiometricEnabledSync(email: String): Boolean {
         val normalizedEmail = email.trim().lowercase()
         return runBlocking {
+            ensureBiometricSettingsMigration()
             biometricSettingsDao.getBiometricEnabledSync(normalizedEmail) ?: false
         }
     }
@@ -149,6 +156,7 @@ class BiometricStorageService @Inject constructor(
      */
     suspend fun setBiometricEnabled(email: String, enabled: Boolean) {
         val normalizedEmail = email.trim().lowercase()
+        ensureBiometricSettingsMigration()
         biometricSettingsDao.setBiometricEnabled(normalizedEmail, enabled)
     }
     
@@ -158,6 +166,7 @@ class BiometricStorageService @Inject constructor(
     suspend fun clearAllUserData(email: String) {
         val normalizedEmail = email.trim().lowercase()
         deleteCredentials(normalizedEmail)
+        ensureBiometricSettingsMigration()
         biometricSettingsDao.deleteBiometricSettings(normalizedEmail)
     }
     
@@ -208,7 +217,7 @@ class BiometricStorageService @Inject constructor(
             }
             
             // Migrate biometric enabled state from SharedPreferences to Room DB
-            migrateBiometricEnabledFromSharedPreferences()
+            ensureBiometricSettingsMigration()
         } catch (e: Exception) {
             // Ignore migration errors
         }
@@ -220,25 +229,68 @@ class BiometricStorageService @Inject constructor(
      */
     private suspend fun migrateBiometricEnabledFromSharedPreferences() {
         try {
-            // Get all keys from regularPrefs that match the old biometric enabled prefix
             val allPrefs = regularPrefs.all
-            val keysToMigrate = allPrefs.keys.filter { 
-                it.startsWith(OLD_KEY_BIOMETRIC_ENABLED_PREFIX) 
+            val keysToMigrate = allPrefs.keys.filter {
+                it.startsWith(OLD_KEY_BIOMETRIC_ENABLED_PREFIX)
             }
+            if (keysToMigrate.isEmpty()) {
+                return
+            }
+            
+            val emailHashLookup = buildEmailHashLookup()
+            val editor = regularPrefs.edit()
             
             for (key in keysToMigrate) {
                 val enabled = regularPrefs.getBoolean(key, false)
-                // Extract email hash from key (format: "biometric_enabled_email_<hash>")
-                // Note: We can't reverse the hash to get the email, so we just clean up
-                // the old SharedPreferences keys. Users will need to re-enable biometric if they want it.
-                // This is acceptable since biometric settings are per-email and stored securely in Room DB now.
+                val emailHash = key.removePrefix(OLD_KEY_BIOMETRIC_ENABLED_PREFIX)
+                val normalizedEmail = emailHashLookup[emailHash]
                 
-                // Remove old SharedPreferences key
-                regularPrefs.edit().remove(key).apply()
+                if (normalizedEmail != null) {
+                    biometricSettingsDao.setBiometricEnabled(normalizedEmail, enabled)
+                }
+                editor.remove(key)
             }
+            
+            editor.apply()
         } catch (e: Exception) {
             // Ignore migration errors
         }
+    }
+    
+    private suspend fun ensureBiometricSettingsMigration() {
+        if (biometricPrefsMigrated) return
+        migrationMutex.withLock {
+            if (!biometricPrefsMigrated) {
+                migrateBiometricEnabledFromSharedPreferences()
+                biometricPrefsMigrated = true
+            }
+        }
+    }
+    
+    private fun buildEmailHashLookup(): Map<String, String> {
+        val lookup = mutableMapOf<String, String>()
+        try {
+            val allEncryptedPrefs = encryptedPrefs.all
+            val credentialKeys = allEncryptedPrefs.keys.filter { it.startsWith(KEY_CREDENTIALS_PREFIX) }
+            
+            for (key in credentialKeys) {
+                val emailHash = key.removePrefix(KEY_CREDENTIALS_PREFIX)
+                val credentialsJson = encryptedPrefs.getString(key, null) ?: continue
+                val credentials = try {
+                    parseJsonToMap(credentialsJson)
+                } catch (e: Exception) {
+                    null
+                }
+                
+                val email = credentials?.get("email")?.trim()?.lowercase()
+                if (!email.isNullOrBlank()) {
+                    lookup[emailHash] = email
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore mapping errors - migration will skip entries without a match
+        }
+        return lookup
     }
     
     /**

@@ -4,11 +4,13 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.trailguide.android.data.model.Difficulty
 import com.trailguide.android.data.model.Trail
 import com.trailguide.android.data.remote.NetworkResult
+import com.trailguide.android.data.repository.GoogleTrailRepository
 import com.trailguide.android.data.repository.TrailRepository
 import com.trailguide.android.presentation.viewmodel.TrailsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Before
@@ -17,6 +19,7 @@ import org.junit.Test
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -34,6 +37,9 @@ class TrailsViewModelTest {
     
     @Mock
     private lateinit var trailRepository: TrailRepository
+    
+    @Mock
+    private lateinit var googleTrailRepository: GoogleTrailRepository
     
     private lateinit var viewModel: TrailsViewModel
     
@@ -70,6 +76,17 @@ class TrailsViewModelTest {
     fun setup() {
         MockitoAnnotations.openMocks(this)
         Dispatchers.setMain(testDispatcher)
+        
+        runBlocking {
+            whenever(
+                googleTrailRepository.searchHikingTrails(
+                    any<Double>(),
+                    any<Double>(),
+                    any<Int>(),
+                    any<String>()
+                )
+            ).thenReturn(flow { emit(NetworkResult.Success(mockTrails)) })
+        }
     }
     
     @After
@@ -87,7 +104,8 @@ class TrailsViewModelTest {
         whenever(trailRepository.getAllTrails()).thenReturn(flow)
         
         // When
-        viewModel = TrailsViewModel(trailRepository)
+        viewModel = TrailsViewModel(trailRepository, googleTrailRepository)
+        viewModel.useGoogleTrails(false)
         advanceUntilIdle()
         
         // Then
@@ -107,7 +125,8 @@ class TrailsViewModelTest {
         whenever(trailRepository.getAllTrails()).thenReturn(flow)
         
         // When
-        viewModel = TrailsViewModel(trailRepository)
+        viewModel = TrailsViewModel(trailRepository, googleTrailRepository)
+        viewModel.useGoogleTrails(false)
         advanceUntilIdle()
         
         // Then
@@ -121,8 +140,11 @@ class TrailsViewModelTest {
         // Given
         val flow = flow { emit(NetworkResult.Success(mockTrails)) }
         whenever(trailRepository.getAllTrails()).thenReturn(flow)
-        viewModel = TrailsViewModel(trailRepository)
+        viewModel = TrailsViewModel(trailRepository, googleTrailRepository)
+        viewModel.useGoogleTrails(false)
         advanceUntilIdle()
+        advanceUntilIdle()
+        assertEquals(mockTrails, viewModel.trails.value)
         
         // When
         viewModel.setSearchQuery("Easy")
@@ -138,7 +160,9 @@ class TrailsViewModelTest {
         // Given
         val flow = flow { emit(NetworkResult.Success(mockTrails)) }
         whenever(trailRepository.getAllTrails()).thenReturn(flow)
-        viewModel = TrailsViewModel(trailRepository)
+        viewModel = TrailsViewModel(trailRepository, googleTrailRepository)
+        viewModel.useGoogleTrails(false)
+        advanceUntilIdle()
         advanceUntilIdle()
         
         // When
@@ -155,7 +179,9 @@ class TrailsViewModelTest {
         // Given
         val flow = flow { emit(NetworkResult.Success(mockTrails)) }
         whenever(trailRepository.getAllTrails()).thenReturn(flow)
-        viewModel = TrailsViewModel(trailRepository)
+        viewModel = TrailsViewModel(trailRepository, googleTrailRepository)
+        viewModel.useGoogleTrails(false)
+        advanceUntilIdle()
         advanceUntilIdle()
         
         // When
@@ -172,7 +198,8 @@ class TrailsViewModelTest {
         // Given
         val flow = flow { emit(NetworkResult.Success(mockTrails)) }
         whenever(trailRepository.getAllTrails()).thenReturn(flow)
-        viewModel = TrailsViewModel(trailRepository)
+        viewModel = TrailsViewModel(trailRepository, googleTrailRepository)
+        viewModel.useGoogleTrails(false)
         viewModel.setSearchQuery("test")
         viewModel.setDifficulty(Difficulty.EASY)
         viewModel.setMaxDistance(5.0)

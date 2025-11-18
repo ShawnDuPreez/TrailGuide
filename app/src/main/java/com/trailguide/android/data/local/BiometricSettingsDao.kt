@@ -1,8 +1,11 @@
 package com.trailguide.android.data.local
 
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
-import androidx.room.*
-import kotlinx.coroutines.flow.map
 
 /**
  * DAO for biometric settings stored in Room database.
@@ -27,37 +30,29 @@ interface BiometricSettingsDao {
      * Insert or update biometric enabled state for an email.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdate(settings: BiometricSettingsEntity)
+    suspend fun upsert(settings: BiometricSettingsEntity)
     
     /**
      * Set biometric enabled state for an email.
      * Creates new entry if doesn't exist, updates if it does.
      */
+    @Transaction
     suspend fun setBiometricEnabled(email: String, enabled: Boolean) {
-        val existing = getBiometricEnabledSync(email)
+        val normalizedEmail = email.trim().lowercase()
+        val existing = getBiometricSettings(normalizedEmail)
         val now = System.currentTimeMillis()
-        
-        if (existing != null) {
-            // Update existing
-            insertOrUpdate(
-                BiometricSettingsEntity(
-                    email = email,
-                    biometricEnabled = enabled,
-                    createdAt = now, // Keep original, but we'll need to query it first
-                    updatedAt = now
-                )
+        val entity = existing
+            ?.copy(
+                biometricEnabled = enabled,
+                updatedAt = now
             )
-        } else {
-            // Create new
-            insertOrUpdate(
-                BiometricSettingsEntity(
-                    email = email,
-                    biometricEnabled = enabled,
-                    createdAt = now,
-                    updatedAt = now
-                )
+            ?: BiometricSettingsEntity.create(
+                email = normalizedEmail,
+                biometricEnabled = enabled,
+                createdAt = now,
+                updatedAt = now
             )
-        }
+        upsert(entity)
     }
     
     /**
@@ -78,4 +73,3 @@ interface BiometricSettingsDao {
     @Query("SELECT * FROM biometric_settings WHERE email = :email")
     suspend fun getBiometricSettings(email: String): BiometricSettingsEntity?
 }
-

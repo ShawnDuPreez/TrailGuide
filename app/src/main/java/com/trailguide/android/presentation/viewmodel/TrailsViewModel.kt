@@ -116,7 +116,7 @@ class TrailsViewModel @Inject constructor(
         }.sortedBy { it.difficulty?.order ?: 2 }
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
+        started = SharingStarted.Eagerly,
         initialValue = emptyList()
     )
     
