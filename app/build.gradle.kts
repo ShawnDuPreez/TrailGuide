@@ -10,7 +10,7 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 // Load local.properties
@@ -41,7 +41,9 @@ android {
         buildConfigField("String", "SUPABASE_KEY", "\"${localProperties.getProperty("SUPABASE_KEY") ?: ""}\"")
         buildConfigField("String", "OPENWEATHER_API_KEY", "\"${localProperties.getProperty("OPENWEATHER_API_KEY") ?: ""}\"")
         buildConfigField("String", "GOOGLE_MAPS_API_KEY", "\"${localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_WEATHER_API_KEY", "\"${localProperties.getProperty("GOOGLE_WEATHER_API_KEY") ?: ""}\"")
         buildConfigField("String", "OPENROUTE_API_KEY", "\"${localProperties.getProperty("OPENROUTE_API_KEY") ?: ""}\"")
+        buildConfigField("String", "GOOGLE_TRANSLATE_API_KEY", "\"${localProperties.getProperty("GOOGLE_TRANSLATE_API_KEY") ?: ""}\"")
         
         // Add Maps API key to manifest
         manifestPlaceholders["MAPS_API_KEY"] = localProperties.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
@@ -66,12 +68,12 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
 
     buildFeatures {
